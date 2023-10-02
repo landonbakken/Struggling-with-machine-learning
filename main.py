@@ -12,7 +12,7 @@ import torch.optim as optim
 import torch.nn.functional as F
 
 # set of environment
-env = gym.make("CartPole-v1")
+env = gym.make("LunarLander-v2")
 
 # set up matplotlib
 is_ipython = "inline" in matplotlib.get_backend()
@@ -123,9 +123,9 @@ def plot_durations(show_result=False):
     plt.ylabel("Duration")
     plt.plot(durations_t.numpy())
     # Take 100 episode averages and plot them too
-    if len(durations_t) >= 100:
-        means = durations_t.unfold(0, 100, 1).mean(1).view(-1)
-        means = torch.cat((torch.zeros(99), means))
+    if len(durations_t) >= 20:
+        means = durations_t.unfold(0, 20, 1).mean(1).view(-1)
+        means = torch.cat((torch.zeros(19), means))
         plt.plot(means.numpy())
 
     plt.pause(0.001)  # pause a bit so that plots are updated
@@ -187,9 +187,9 @@ def optimize_model():
 
 
 if torch.cuda.is_available():
-    num_episodes = 5000
+    num_episodes = 600
 else:
-    num_episodes = 1000
+    num_episodes = 300
 
 for i_episode in range(num_episodes):
     # Initialize the environment and get it's state
