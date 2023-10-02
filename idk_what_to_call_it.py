@@ -69,6 +69,7 @@ class Agent:
         index = self.mem_cntr % self.mem_size
         print(index)
         print(self.state_memory[index])
+        print(state)
         self.state_memory[index] = state
         self.new_state_memory[index] = state_
         self.reward_memory[index] = reward
@@ -78,12 +79,15 @@ class Agent:
         self.mem_cntr += 1
 
     def choose_action(self, observation):
-        if np.random.random() > self.epsilon:
+        if np.random.random() > self.epsilon or True:
             state = T.tensor([observation]).to(self.Q_eval.device)
             actions = self.Q_eval.forward(state)
             action = T.argmax(actions).item()
         else:
             action = np.random.choice(self.action_space)
+            print("random")
+
+        print(type(action))
 
         return action
 
