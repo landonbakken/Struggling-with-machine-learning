@@ -122,7 +122,7 @@ def plot_durations(show_result=False):
     plt.xlabel("Episode")
     plt.ylabel("Duration")
     plt.plot(durations_t.numpy())
-    # Take 100 episode averages and plot them too
+    # Take 20 episode averages and plot them too
     if len(durations_t) >= 20:
         means = durations_t.unfold(0, 20, 1).mean(1).view(-1)
         means = torch.cat((torch.zeros(19), means))
