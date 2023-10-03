@@ -673,6 +673,7 @@ class LunarLander(gym.Env, EzPickle):
 
         if self.render_mode == "human":
             self.render()
+
         return np.array(state, dtype=np.float32), reward, terminated, False, {}
 
     def render(self):
