@@ -1,6 +1,6 @@
 print("Building imports...")
+# base imports
 import gymnasium as gym
-
 from stable_baselines3 import A2C
 
 
@@ -27,16 +27,17 @@ def TrainModel():
 
 
 print("Building environment...")
-env = gym.make("LunarLander-v2", render_mode="rgb_array")
+environment_name = "BipedalWalker-v3"  # LunarLander-v2
+env = gym.make(environment_name, render_mode="rgb_array")
 
 if input("load model (y/n)?") == "y":
-    model = A2C.load(input("File: "), env, tensorboard_log="./tenserboard/")
+    model = A2C.load(input("File: "), env)
     if input("Train further (y/n)? ") == "y":
         TrainModel()
     ShowResult()
 else:
     print("creating model...")
-    model = A2C("MlpPolicy", env, verbose=1, tensorboard_log="./tenserboard/")
+    model = A2C("MlpPolicy", env, verbose=1)
     TrainModel()
     ShowResult()
 
