@@ -1,9 +1,11 @@
-# get rid of annoying deprecation warnings I can do nothing about
-import os
+# purely cosmetic things
 import warnings
+import os
 
 warnings.warn = lambda *args, **kwargs: None
 os.system("cls")
+
+# start actual things
 print("Building imports...")
 import gymnasium as gym
 from stable_baselines3 import PPO
@@ -17,7 +19,7 @@ def ShowResult():
     while True:
         action, _state = model.predict(obs, deterministic=False)
         obs, reward, done, info = env.step(action)
-        env.render("human")
+        env.render(mode="human")
 
 
 def TrainModel():
@@ -35,8 +37,14 @@ def TrainModel():
         print("done")
 
 
-environments = ["BipedalWalker-v3", "LunarLander-v2", "CartPole-v1"]
-print("\nEnvironment:\n0: Bipedal Walker\n1: Lunar Lander\n2: Cart Pole")
+environments = [
+    "BipedalWalker-v3",
+    "LunarLander-v2",
+    "CartPole-v1",
+    "Custom-v0",
+]
+print("\nEnvironment:\n0: Bipedal Walker\n1: Lunar Lander\n2: Cart Pole\n3: Custom")
+gym.register(id="Custom-v0", entry_point="custom_env:CustomEnv")
 environment_name = environments[int(input("? "))]
 env = make_vec_env(environment_name, seed=1, n_envs=4)
 
@@ -48,7 +56,3 @@ else:
 
 TrainModel()
 ShowResult()
-
-
-# gym.register(id="TestEnv-v0", entry_point="custom_env:LunarLander")
-# env = gym.make("CartPole-v1", render_mode="rgb_array")

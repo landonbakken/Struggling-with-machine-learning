@@ -1,205 +1,194 @@
-__credits__ = ["Andrea PIERRÉ"]
-
+"""
+Classic cart-pole system implemented by Rich Sutton et al.
+Copied from http://incompleteideas.net/sutton/book/code/pole.c
+permalink: https://perma.cc/C9ZM-652R
+"""
 import math
-import warnings
-from typing import TYPE_CHECKING, Optional
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
 import gymnasium as gym
-from gymnasium import error, spaces
+from gymnasium import logger, spaces
+from gymnasium.envs.classic_control import utils
 from gymnasium.error import DependencyNotInstalled
-from gymnasium.utils import EzPickle, colorize
-from gymnasium.utils.step_api_compatibility import step_api_compatibility
+from gymnasium.experimental.vector import VectorEnv
+from gymnasium.vector.utils import batch_space
 
 
-try:
-    import Box2D
-    from Box2D.b2 import (
-        circleShape,
-        contactListener,
-        edgeShape,
-        fixtureDef,
-        polygonShape,
-        revoluteJointDef,
-    )
-except ImportError as e:
-    raise DependencyNotInstalled(
-        "Box2D is not installed, run `pip install gymnasium[box2d]`"
-    ) from e
+class CustomEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
+    """
+    ## Description
 
+    This environment corresponds to the version of the cart-pole problem described by Barto, Sutton, and Anderson in
+    ["Neuronlike Adaptive Elements That Can Solve Difficult Learning Control Problem"](https://ieeexplore.ieee.org/document/6313077).
+    A pole is attached by an un-actuated joint to a cart, which moves along a frictionless track.
+    The pendulum is placed upright on the cart and the goal is to balance the pole by applying forces
+     in the left and right direction on the cart.
 
-if TYPE_CHECKING:
-    import pygame
+    ## Action Space
 
+    The action is a `ndarray` with shape `(1,)` which can take values `{0, 1}` indicating the direction
+     of the fixed force the cart is pushed with.
 
-FPS = 50
-SCALE = 30.0  # affects how fast-paced the game is, forces should be adjusted as well
+    - 0: Push cart to the left
+    - 1: Push cart to the right
 
-MAIN_ENGINE_POWER = 13.0
-SIDE_ENGINE_POWER = 0.6
+    **Note**: The velocity that is reduced or increased by the applied force is not fixed and it depends on the angle
+     the pole is pointing. The center of gravity of the pole varies the amount of energy needed to move the cart underneath it
 
-INITIAL_RANDOM = 1000.0  # Set 1500 to make game harder
+    ## Observation Space
 
-LANDER_POLY = [(-14, +17), (-17, 0), (-17, -10), (+17, -10), (+17, 0), (+14, +17)]
-LEG_AWAY = 20
-LEG_DOWN = 18
-LEG_W, LEG_H = 2, 8
-LEG_SPRING_TORQUE = 40
+    The observation is a `ndarray` with shape `(4,)` with the values corresponding to the following positions and velocities:
 
-SIDE_ENGINE_HEIGHT = 14
-SIDE_ENGINE_AWAY = 12
-MAIN_ENGINE_Y_LOCATION = (
-    4  # The Y location of the main engine on the body of the Lander.
-)
+    | Num | Observation           | Min                 | Max               |
+    |-----|-----------------------|---------------------|-------------------|
+    | 0   | Cart Position         | -4.8                | 4.8               |
+    | 1   | Cart Velocity         | -Inf                | Inf               |
+    | 2   | Pole Angle            | ~ -0.418 rad (-24°) | ~ 0.418 rad (24°) |
+    | 3   | Pole Angular Velocity | -Inf                | Inf               |
 
-VIEWPORT_W = 600
-VIEWPORT_H = 400
+    **Note:** While the ranges above denote the possible values for observation space of each element,
+        it is not reflective of the allowed values of the state space in an unterminated episode. Particularly:
+    -  The cart x-position (index 0) can be take values between `(-4.8, 4.8)`, but the episode terminates
+       if the cart leaves the `(-2.4, 2.4)` range.
+    -  The pole angle can be observed between  `(-.418, .418)` radians (or **±24°**), but the episode terminates
+       if the pole angle is not in the range `(-.2095, .2095)` (or **±12°**)
 
+    ## Rewards
 
-class ContactDetector(contactListener):
-    def __init__(self, env):
-        contactListener.__init__(self)
-        self.env = env
+    Since the goal is to keep the pole upright for as long as possible, a reward of `+1` for every step taken,
+    including the termination step, is allotted. The threshold for rewards is 500 for v1 and 200 for v0.
 
-    def BeginContact(self, contact):
-        if (
-            self.env.lander == contact.fixtureA.body
-            or self.env.lander == contact.fixtureB.body
-        ):
-            self.env.game_over = True
-        for i in range(2):
-            if self.env.legs[i] in [contact.fixtureA.body, contact.fixtureB.body]:
-                self.env.legs[i].ground_contact = True
+    ## Starting State
 
-    def EndContact(self, contact):
-        for i in range(2):
-            if self.env.legs[i] in [contact.fixtureA.body, contact.fixtureB.body]:
-                self.env.legs[i].ground_contact = False
+    All observations are assigned a uniformly random value in `(-0.05, 0.05)`
 
+    ## Episode End
 
-class LunarLander(gym.Env, EzPickle):
+    The episode ends if any one of the following occurs:
+
+    1. Termination: Pole Angle is greater than ±12°
+    2. Termination: Cart Position is greater than ±2.4 (center of the cart reaches the edge of the display)
+    3. Truncation: Episode length is greater than 500 (200 for v0)
+
+    ## Arguments
+
+    ```python
+    import gymnasium as gym
+    gym.make('CartPole-v1')
+    ```
+
+    On reset, the `options` parameter allows the user to change the bounds used to determine
+    the new random state.
+    """
+
     metadata = {
         "render_modes": ["human", "rgb_array"],
-        "render_fps": FPS,
+        "render_fps": 50,
     }
 
-    def __init__(
-        self,
-        render_mode: Optional[str] = None,
-        continuous: bool = False,
-        gravity: float = -10.0,
-        enable_wind: bool = False,
-        wind_power: float = 15.0,
-        turbulence_power: float = 1.5,
-    ):
-        EzPickle.__init__(
-            self,
-            render_mode,
-            continuous,
-            gravity,
-            enable_wind,
-            wind_power,
-            turbulence_power,
-        )
+    def __init__(self, render_mode: Optional[str] = None):
+        self.gravity = 9.8
+        self.masscart = 1.0
+        self.masspole = 0.1
+        self.total_mass = self.masspole + self.masscart
+        self.length = 0.5  # actually half the pole's length
+        self.polemass_length = self.masspole * self.length
+        self.force_mag = 10.0
+        self.tau = 0.02  # seconds between state updates
+        self.kinematics_integrator = "euler"
 
-        assert (
-            -12.0 < gravity and gravity < 0.0
-        ), f"gravity (current value: {gravity}) must be between -12 and 0"
-        self.gravity = gravity
+        # Angle at which to fail the episode
+        self.theta_threshold_radians = 12 * 2 * math.pi / 360
+        self.x_threshold = 2.4
 
-        if 0.0 > wind_power or wind_power > 20.0:
-            warnings.warn(
-                colorize(
-                    f"WARN: wind_power value is recommended to be between 0.0 and 20.0, (current value: {wind_power})",
-                    "yellow",
-                ),
-            )
-        self.wind_power = wind_power
-
-        if 0.0 > turbulence_power or turbulence_power > 2.0:
-            warnings.warn(
-                colorize(
-                    f"WARN: turbulence_power value is recommended to be between 0.0 and 2.0, (current value: {turbulence_power})",
-                    "yellow",
-                ),
-            )
-        self.turbulence_power = turbulence_power
-
-        self.enable_wind = enable_wind
-        self.wind_idx = np.random.randint(-9999, 9999)
-        self.torque_idx = np.random.randint(-9999, 9999)
-
-        self.screen: pygame.Surface = None
-        self.clock = None
-        self.isopen = True
-        self.world = Box2D.b2World(gravity=(0, gravity))
-        self.moon = None
-        self.lander: Optional[Box2D.b2Body] = None
-        self.particles = []
-
-        self.prev_reward = None
-
-        self.continuous = continuous
-
-        low = np.array(
-            [
-                # these are bounds for position
-                # realistically the environment should have ended
-                # long before we reach more than 50% outside
-                -1.5,
-                -1.5,
-                # velocity bounds is 5x rated speed
-                -5.0,
-                -5.0,
-                -math.pi,
-                -5.0,
-                -0.0,
-                -0.0,
-            ]
-        ).astype(np.float32)
+        # Angle limit set to 2 * theta_threshold_radians so failing observation
+        # is still within bounds.
         high = np.array(
             [
-                # these are bounds for position
-                # realistically the environment should have ended
-                # long before we reach more than 50% outside
-                1.5,
-                1.5,
-                # velocity bounds is 5x rated speed
-                5.0,
-                5.0,
-                math.pi,
-                5.0,
-                1.0,
-                1.0,
-            ]
-        ).astype(np.float32)
+                self.x_threshold * 2,
+                np.finfo(np.float32).max,
+                self.theta_threshold_radians * 2,
+                np.finfo(np.float32).max,
+            ],
+            dtype=np.float32,
+        )
 
-        # useful range is -1 .. +1, but spikes can be higher
-        self.observation_space = spaces.Box(low, high)
-
-        if self.continuous:
-            # Action is two floats [main engine, left-right engines].
-            # Main engine: -1..0 off, 0..+1 throttle from 50% to 100% power. Engine can't work with less than 50% power.
-            # Left-right:  -1.0..-0.5 fire left engine, +0.5..+1.0 fire right engine, -0.5..0.5 off
-            self.action_space = spaces.Box(-1, +1, (2,), dtype=np.float32)
-        else:
-            # Nop, fire left engine, main engine, right engine
-            self.action_space = spaces.Discrete(4)
+        self.action_space = spaces.Discrete(2)
+        self.observation_space = spaces.Box(-high, high, dtype=np.float32)
 
         self.render_mode = render_mode
 
-    def _destroy(self):
-        if not self.moon:
-            return
-        self.world.contactListener = None
-        self._clean_particles(True)
-        self.world.DestroyBody(self.moon)
-        self.moon = None
-        self.world.DestroyBody(self.lander)
-        self.lander = None
-        self.world.DestroyBody(self.legs[0])
-        self.world.DestroyBody(self.legs[1])
+        self.screen_width = 600
+        self.screen_height = 400
+        self.screen = None
+        self.clock = None
+        self.isopen = True
+        self.state = None
+
+        self.steps_beyond_terminated = None
+
+    def step(self, action):
+        assert self.action_space.contains(
+            action
+        ), f"{action!r} ({type(action)}) invalid"
+        assert self.state is not None, "Call reset before using step method."
+        x, x_dot, theta, theta_dot = self.state
+        force = self.force_mag if action == 1 else -self.force_mag
+        costheta = math.cos(theta)
+        sintheta = math.sin(theta)
+
+        # For the interested reader:
+        # https://coneural.org/florian/papers/05_cart_pole.pdf
+        temp = (
+            force + self.polemass_length * theta_dot**2 * sintheta
+        ) / self.total_mass
+        thetaacc = (self.gravity * sintheta - costheta * temp) / (
+            self.length * (4.0 / 3.0 - self.masspole * costheta**2 / self.total_mass)
+        )
+        xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass
+
+        if self.kinematics_integrator == "euler":
+            x = x + self.tau * x_dot
+            x_dot = x_dot + self.tau * xacc
+            theta = theta + self.tau * theta_dot
+            theta_dot = theta_dot + self.tau * thetaacc
+        else:  # semi-implicit euler
+            x_dot = x_dot + self.tau * xacc
+            x = x + self.tau * x_dot
+            theta_dot = theta_dot + self.tau * thetaacc
+            theta = theta + self.tau * theta_dot
+
+        self.state = (x, x_dot, theta, theta_dot)
+
+        terminated = bool(
+            x < -self.x_threshold
+            or x > self.x_threshold
+            or theta < -self.theta_threshold_radians
+            or theta > self.theta_threshold_radians
+        )
+
+        if not terminated:
+            reward = 1.0
+        elif self.steps_beyond_terminated is None:
+            # Pole just fell!
+            self.steps_beyond_terminated = 0
+            reward = 1.0
+        else:
+            if self.steps_beyond_terminated == 0:
+                logger.warn(
+                    "You are calling 'step()' even though this "
+                    "environment has already returned terminated = True. You "
+                    "should always call 'reset()' once you receive 'terminated = "
+                    "True' -- any further steps are undefined behavior."
+                )
+            self.steps_beyond_terminated += 1
+            reward = 0.0
+
+        if self.render_mode == "human":
+            self.render()
+        return np.array(self.state, dtype=np.float32), reward, terminated, False, {}
 
     def reset(
         self,
@@ -208,332 +197,17 @@ class LunarLander(gym.Env, EzPickle):
         options: Optional[dict] = None,
     ):
         super().reset(seed=seed)
-        self._destroy()
-        self.world.contactListener_keepref = ContactDetector(self)
-        self.world.contactListener = self.world.contactListener_keepref
-        self.game_over = False
-        self.prev_shaping = None
-
-        W = VIEWPORT_W / SCALE
-        H = VIEWPORT_H / SCALE
-
-        # Create Terrain
-        CHUNKS = 11
-        height = self.np_random.uniform(0, H / 2, size=(CHUNKS + 1,))
-        chunk_x = [W / (CHUNKS - 1) * i for i in range(CHUNKS)]
-        self.helipad_x1 = chunk_x[CHUNKS // 2 - 1]
-        self.helipad_x2 = chunk_x[CHUNKS // 2 + 1]
-        self.helipad_y = H / 4
-        height[CHUNKS // 2 - 2] = self.helipad_y
-        height[CHUNKS // 2 - 1] = self.helipad_y
-        height[CHUNKS // 2 + 0] = self.helipad_y
-        height[CHUNKS // 2 + 1] = self.helipad_y
-        height[CHUNKS // 2 + 2] = self.helipad_y
-        smooth_y = [
-            0.33 * (height[i - 1] + height[i + 0] + height[i + 1])
-            for i in range(CHUNKS)
-        ]
-
-        self.moon = self.world.CreateStaticBody(
-            shapes=edgeShape(vertices=[(0, 0), (W, 0)])
-        )
-        self.sky_polys = []
-        for i in range(CHUNKS - 1):
-            p1 = (chunk_x[i], smooth_y[i])
-            p2 = (chunk_x[i + 1], smooth_y[i + 1])
-            self.moon.CreateEdgeFixture(vertices=[p1, p2], density=0, friction=0.1)
-            self.sky_polys.append([p1, p2, (p2[0], H), (p1[0], H)])
-
-        self.moon.color1 = (0.0, 0.0, 0.0)
-        self.moon.color2 = (0.0, 0.0, 0.0)
-
-        # Create Lander body
-        initial_y = VIEWPORT_H / SCALE
-        initial_x = VIEWPORT_W / SCALE / 2
-        self.lander: Box2D.b2Body = self.world.CreateDynamicBody(
-            position=(initial_x, initial_y),
-            angle=0.0,
-            fixtures=fixtureDef(
-                shape=polygonShape(
-                    vertices=[(x / SCALE, y / SCALE) for x, y in LANDER_POLY]
-                ),
-                density=5.0,
-                friction=0.1,
-                categoryBits=0x0010,
-                maskBits=0x001,  # collide only with ground
-                restitution=0.0,
-            ),  # 0.99 bouncy
-        )
-        self.lander.color1 = (128, 102, 230)
-        self.lander.color2 = (77, 77, 128)
-
-        # Apply the initial random impulse to the lander
-        self.lander.ApplyForceToCenter(
-            (
-                self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM),
-                self.np_random.uniform(-INITIAL_RANDOM, INITIAL_RANDOM),
-            ),
-            True,
-        )
-
-        # Create Lander Legs
-        self.legs = []
-        for i in [-1, +1]:
-            leg = self.world.CreateDynamicBody(
-                position=(initial_x - i * LEG_AWAY / SCALE, initial_y),
-                angle=(i * 0.05),
-                fixtures=fixtureDef(
-                    shape=polygonShape(box=(LEG_W / SCALE, LEG_H / SCALE)),
-                    density=1.0,
-                    restitution=0.0,
-                    categoryBits=0x0020,
-                    maskBits=0x001,
-                ),
-            )
-            leg.ground_contact = False
-            leg.color1 = (128, 102, 230)
-            leg.color2 = (77, 77, 128)
-            rjd = revoluteJointDef(
-                bodyA=self.lander,
-                bodyB=leg,
-                localAnchorA=(0, 0),
-                localAnchorB=(i * LEG_AWAY / SCALE, LEG_DOWN / SCALE),
-                enableMotor=True,
-                enableLimit=True,
-                maxMotorTorque=LEG_SPRING_TORQUE,
-                motorSpeed=+0.3 * i,  # low enough not to jump back into the sky
-            )
-            if i == -1:
-                rjd.lowerAngle = (
-                    +0.9 - 0.5
-                )  # The most esoteric numbers here, angled legs have freedom to travel within
-                rjd.upperAngle = +0.9
-            else:
-                rjd.lowerAngle = -0.9
-                rjd.upperAngle = -0.9 + 0.5
-            leg.joint = self.world.CreateJoint(rjd)
-            self.legs.append(leg)
-
-        self.drawlist = [self.lander] + self.legs
+        # Note that if you use custom reset bounds, it may lead to out-of-bound
+        # state/observations.
+        low, high = utils.maybe_parse_reset_bounds(
+            options, -0.05, 0.05  # default low
+        )  # default high
+        self.state = self.np_random.uniform(low=low, high=high, size=(4,))
+        self.steps_beyond_terminated = None
 
         if self.render_mode == "human":
             self.render()
-        return self.step(np.array([0, 0]) if self.continuous else 0)[0], {}
-
-    def _create_particle(self, mass, x, y, ttl):
-        p = self.world.CreateDynamicBody(
-            position=(x, y),
-            angle=0.0,
-            fixtures=fixtureDef(
-                shape=circleShape(radius=2 / SCALE, pos=(0, 0)),
-                density=mass,
-                friction=0.1,
-                categoryBits=0x0100,
-                maskBits=0x001,  # collide only with ground
-                restitution=0.3,
-            ),
-        )
-        p.ttl = ttl
-        self.particles.append(p)
-        self._clean_particles(False)
-        return p
-
-    def _clean_particles(self, all):
-        while self.particles and (all or self.particles[0].ttl < 0):
-            self.world.DestroyBody(self.particles.pop(0))
-
-    def step(self, action):
-        assert self.lander is not None
-
-        # Update wind and apply to the lander
-        assert self.lander is not None, "You forgot to call reset()"
-        if self.enable_wind and not (
-            self.legs[0].ground_contact or self.legs[1].ground_contact
-        ):
-            # the function used for wind is tanh(sin(2 k x) + sin(pi k x)),
-            # which is proven to never be periodic, k = 0.01
-            wind_mag = (
-                math.tanh(
-                    math.sin(0.02 * self.wind_idx)
-                    + (math.sin(math.pi * 0.01 * self.wind_idx))
-                )
-                * self.wind_power
-            )
-            self.wind_idx += 1
-            self.lander.ApplyForceToCenter(
-                (wind_mag, 0.0),
-                True,
-            )
-
-            # the function used for torque is tanh(sin(2 k x) + sin(pi k x)),
-            # which is proven to never be periodic, k = 0.01
-            torque_mag = math.tanh(
-                math.sin(0.02 * self.torque_idx)
-                + (math.sin(math.pi * 0.01 * self.torque_idx))
-            ) * (self.turbulence_power)
-            self.torque_idx += 1
-            self.lander.ApplyTorque(
-                (torque_mag),
-                True,
-            )
-
-        if self.continuous:
-            action = np.clip(action, -1, +1).astype(np.float32)
-        else:
-            assert self.action_space.contains(
-                action
-            ), f"{action!r} ({type(action)}) invalid "
-
-        # Apply Engine Impulses
-
-        # Tip is a the (X and Y) components of the rotation of the lander.
-        tip = (math.sin(self.lander.angle), math.cos(self.lander.angle))
-
-        # Side is the (-Y and X) components of the rotation of the lander.
-        side = (-tip[1], tip[0])
-
-        # Generate two random numbers between -1/SCALE and 1/SCALE.
-        dispersion = [self.np_random.uniform(-1.0, +1.0) / SCALE for _ in range(2)]
-
-        m_power = 0.0
-        if (self.continuous and action[0] > 0.0) or (
-            not self.continuous and action == 2
-        ):
-            # Main engine
-            if self.continuous:
-                m_power = (np.clip(action[0], 0.0, 1.0) + 1.0) * 0.5  # 0.5..1.0
-                assert m_power >= 0.5 and m_power <= 1.0
-            else:
-                m_power = 1.0
-
-            # 4 is move a bit downwards, +-2 for randomness
-            # The components of the impulse to be applied by the main engine.
-            ox = (
-                tip[0] * (MAIN_ENGINE_Y_LOCATION / SCALE + 2 * dispersion[0])
-                + side[0] * dispersion[1]
-            )
-            oy = (
-                -tip[1] * (MAIN_ENGINE_Y_LOCATION / SCALE + 2 * dispersion[0])
-                - side[1] * dispersion[1]
-            )
-
-            impulse_pos = (self.lander.position[0] + ox, self.lander.position[1] + oy)
-            if self.render_mode is not None:
-                # particles are just a decoration, with no impact on the physics, so don't add them when not rendering
-                p = self._create_particle(
-                    3.5,  # 3.5 is here to make particle speed adequate
-                    impulse_pos[0],
-                    impulse_pos[1],
-                    m_power,
-                )
-                p.ApplyLinearImpulse(
-                    (
-                        ox * MAIN_ENGINE_POWER * m_power,
-                        oy * MAIN_ENGINE_POWER * m_power,
-                    ),
-                    impulse_pos,
-                    True,
-                )
-            self.lander.ApplyLinearImpulse(
-                (-ox * MAIN_ENGINE_POWER * m_power, -oy * MAIN_ENGINE_POWER * m_power),
-                impulse_pos,
-                True,
-            )
-
-        s_power = 0.0
-        if (self.continuous and np.abs(action[1]) > 0.5) or (
-            not self.continuous and action in [1, 3]
-        ):
-            # Orientation/Side engines
-            if self.continuous:
-                direction = np.sign(action[1])
-                s_power = np.clip(np.abs(action[1]), 0.5, 1.0)
-                assert s_power >= 0.5 and s_power <= 1.0
-            else:
-                # action = 1 is left, action = 3 is right
-                direction = action - 2
-                s_power = 1.0
-
-            # The components of the impulse to be applied by the side engines.
-            ox = tip[0] * dispersion[0] + side[0] * (
-                3 * dispersion[1] + direction * SIDE_ENGINE_AWAY / SCALE
-            )
-            oy = -tip[1] * dispersion[0] - side[1] * (
-                3 * dispersion[1] + direction * SIDE_ENGINE_AWAY / SCALE
-            )
-
-            # The constant 17 is a constant, that is presumably meant to be SIDE_ENGINE_HEIGHT.
-            # However, SIDE_ENGINE_HEIGHT is defined as 14
-            # This casuses the position of the thurst on the body of the lander to change, depending on the orientation of the lander.
-            # This in turn results in an orientation depentant torque being applied to the lander.
-            impulse_pos = (
-                self.lander.position[0] + ox - tip[0] * 17 / SCALE,
-                self.lander.position[1] + oy + tip[1] * SIDE_ENGINE_HEIGHT / SCALE,
-            )
-            if self.render_mode is not None:
-                # particles are just a decoration, with no impact on the physics, so don't add them when not rendering
-                p = self._create_particle(0.7, impulse_pos[0], impulse_pos[1], s_power)
-                p.ApplyLinearImpulse(
-                    (
-                        ox * SIDE_ENGINE_POWER * s_power,
-                        oy * SIDE_ENGINE_POWER * s_power,
-                    ),
-                    impulse_pos,
-                    True,
-                )
-            self.lander.ApplyLinearImpulse(
-                (-ox * SIDE_ENGINE_POWER * s_power, -oy * SIDE_ENGINE_POWER * s_power),
-                impulse_pos,
-                True,
-            )
-
-        self.world.Step(1.0 / FPS, 6 * 30, 2 * 30)
-
-        pos = self.lander.position
-        vel = self.lander.linearVelocity
-
-        state = [
-            (pos.x - VIEWPORT_W / SCALE / 2) / (VIEWPORT_W / SCALE / 2),
-            (pos.y - (self.helipad_y + LEG_DOWN / SCALE)) / (VIEWPORT_H / SCALE / 2),
-            vel.x * (VIEWPORT_W / SCALE / 2) / FPS,
-            vel.y * (VIEWPORT_H / SCALE / 2) / FPS,
-            self.lander.angle,
-            20.0 * self.lander.angularVelocity / FPS,
-            1.0 if self.legs[0].ground_contact else 0.0,
-            1.0 if self.legs[1].ground_contact else 0.0,
-        ]
-        assert len(state) == 8
-
-        reward = 0
-        shaping = (
-            -100 * np.sqrt(state[0] * state[0] + state[1] * state[1])
-            - 100 * np.sqrt(state[2] * state[2] + state[3] * state[3])
-            - 100 * abs(state[4])
-            + 10 * state[6]
-            + 10 * state[7]
-        )  # And ten points for legs contact, the idea is if you
-        # lose contact again after landing, you get negative reward
-        if self.prev_shaping is not None:
-            reward = shaping - self.prev_shaping
-        self.prev_shaping = shaping
-
-        reward -= (
-            m_power * 0.30
-        )  # less fuel spent is better, about -30 for heuristic landing
-        reward -= s_power * 0.03
-
-        terminated = False
-        if self.game_over or abs(state[0]) >= 1.0:
-            terminated = True
-            reward = -100
-        if not self.lander.awake:
-            terminated = True
-            reward = +100
-
-        if self.render_mode == "human":
-            self.render()
-
-        return np.array(state, dtype=np.float32), reward, terminated, False, {}
+        return np.array(self.state, dtype=np.float32), {}
 
     def render(self):
         if self.render_mode is None:
@@ -550,109 +224,352 @@ class LunarLander(gym.Env, EzPickle):
             from pygame import gfxdraw
         except ImportError as e:
             raise DependencyNotInstalled(
-                "pygame is not installed, run `pip install gymnasium[box2d]`"
+                "pygame is not installed, run `pip install gymnasium[classic-control]`"
             ) from e
 
-        if self.screen is None and self.render_mode == "human":
+        if self.screen is None:
             pygame.init()
-            pygame.display.init()
-            self.screen = pygame.display.set_mode((VIEWPORT_W, VIEWPORT_H))
+            if self.render_mode == "human":
+                pygame.display.init()
+                self.screen = pygame.display.set_mode(
+                    (self.screen_width, self.screen_height)
+                )
+            else:  # mode == "rgb_array"
+                self.screen = pygame.Surface((self.screen_width, self.screen_height))
         if self.clock is None:
             self.clock = pygame.time.Clock()
 
-        self.surf = pygame.Surface((VIEWPORT_W, VIEWPORT_H))
+        world_width = self.x_threshold * 2
+        scale = self.screen_width / world_width
+        polewidth = 10.0
+        polelen = scale * (2 * self.length)
+        cartwidth = 50.0
+        cartheight = 30.0
 
-        pygame.transform.scale(self.surf, (SCALE, SCALE))
-        pygame.draw.rect(self.surf, (255, 255, 255), self.surf.get_rect())
+        if self.state is None:
+            return None
 
-        for obj in self.particles:
-            obj.ttl -= 0.15
-            obj.color1 = (
-                int(max(0.2, 0.15 + obj.ttl) * 255),
-                int(max(0.2, 0.5 * obj.ttl) * 255),
-                int(max(0.2, 0.5 * obj.ttl) * 255),
-            )
-            obj.color2 = (
-                int(max(0.2, 0.15 + obj.ttl) * 255),
-                int(max(0.2, 0.5 * obj.ttl) * 255),
-                int(max(0.2, 0.5 * obj.ttl) * 255),
-            )
+        x = self.state
 
-        self._clean_particles(False)
+        self.surf = pygame.Surface((self.screen_width, self.screen_height))
+        self.surf.fill((255, 255, 255))
 
-        for p in self.sky_polys:
-            scaled_poly = []
-            for coord in p:
-                scaled_poly.append((coord[0] * SCALE, coord[1] * SCALE))
-            pygame.draw.polygon(self.surf, (0, 0, 0), scaled_poly)
-            gfxdraw.aapolygon(self.surf, scaled_poly, (0, 0, 0))
+        l, r, t, b = -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
+        axleoffset = cartheight / 4.0
+        cartx = x[0] * scale + self.screen_width / 2.0  # MIDDLE OF CART
+        carty = 100  # TOP OF CART
+        cart_coords = [(l, b), (l, t), (r, t), (r, b)]
+        cart_coords = [(c[0] + cartx, c[1] + carty) for c in cart_coords]
+        gfxdraw.aapolygon(self.surf, cart_coords, (0, 0, 0))
+        gfxdraw.filled_polygon(self.surf, cart_coords, (0, 0, 0))
 
-        for obj in self.particles + self.drawlist:
-            for f in obj.fixtures:
-                trans = f.body.transform
-                if type(f.shape) is circleShape:
-                    pygame.draw.circle(
-                        self.surf,
-                        color=obj.color1,
-                        center=trans * f.shape.pos * SCALE,
-                        radius=f.shape.radius * SCALE,
-                    )
-                    pygame.draw.circle(
-                        self.surf,
-                        color=obj.color2,
-                        center=trans * f.shape.pos * SCALE,
-                        radius=f.shape.radius * SCALE,
-                    )
+        l, r, t, b = (
+            -polewidth / 2,
+            polewidth / 2,
+            polelen - polewidth / 2,
+            -polewidth / 2,
+        )
 
-                else:
-                    path = [trans * v * SCALE for v in f.shape.vertices]
-                    pygame.draw.polygon(self.surf, color=obj.color1, points=path)
-                    gfxdraw.aapolygon(self.surf, path, obj.color1)
-                    pygame.draw.aalines(
-                        self.surf, color=obj.color2, points=path, closed=True
-                    )
+        pole_coords = []
+        for coord in [(l, b), (l, t), (r, t), (r, b)]:
+            coord = pygame.math.Vector2(coord).rotate_rad(-x[2])
+            coord = (coord[0] + cartx, coord[1] + carty + axleoffset)
+            pole_coords.append(coord)
+        gfxdraw.aapolygon(self.surf, pole_coords, (202, 152, 101))
+        gfxdraw.filled_polygon(self.surf, pole_coords, (202, 152, 101))
 
-                for x in [self.helipad_x1, self.helipad_x2]:
-                    x = x * SCALE
-                    flagy1 = self.helipad_y * SCALE
-                    flagy2 = flagy1 + 50
-                    pygame.draw.line(
-                        self.surf,
-                        color=(255, 255, 255),
-                        start_pos=(x, flagy1),
-                        end_pos=(x, flagy2),
-                        width=1,
-                    )
-                    pygame.draw.polygon(
-                        self.surf,
-                        color=(204, 204, 0),
-                        points=[
-                            (x, flagy2),
-                            (x, flagy2 - 10),
-                            (x + 25, flagy2 - 5),
-                        ],
-                    )
-                    gfxdraw.aapolygon(
-                        self.surf,
-                        [(x, flagy2), (x, flagy2 - 10), (x + 25, flagy2 - 5)],
-                        (204, 204, 0),
-                    )
+        gfxdraw.aacircle(
+            self.surf,
+            int(cartx),
+            int(carty + axleoffset),
+            int(polewidth / 2),
+            (129, 132, 203),
+        )
+        gfxdraw.filled_circle(
+            self.surf,
+            int(cartx),
+            int(carty + axleoffset),
+            int(polewidth / 2),
+            (129, 132, 203),
+        )
+
+        gfxdraw.hline(self.surf, 0, self.screen_width, carty, (0, 0, 0))
 
         self.surf = pygame.transform.flip(self.surf, False, True)
-
+        self.screen.blit(self.surf, (0, 0))
         if self.render_mode == "human":
-            assert self.screen is not None
-            self.screen.blit(self.surf, (0, 0))
             pygame.event.pump()
             self.clock.tick(self.metadata["render_fps"])
             pygame.display.flip()
+
         elif self.render_mode == "rgb_array":
             return np.transpose(
-                np.array(pygame.surfarray.pixels3d(self.surf)), axes=(1, 0, 2)
+                np.array(pygame.surfarray.pixels3d(self.screen)), axes=(1, 0, 2)
             )
 
     def close(self):
         if self.screen is not None:
+            import pygame
+
+            pygame.display.quit()
+            pygame.quit()
+            self.isopen = False
+
+
+class CartPoleVectorEnv(VectorEnv):
+    metadata = {
+        "render_modes": ["human", "rgb_array"],
+        "render_fps": 50,
+    }
+
+    def __init__(
+        self,
+        num_envs: int = 2,
+        max_episode_steps: int = 500,
+        render_mode: Optional[str] = None,
+    ):
+        super().__init__()
+        self.num_envs = num_envs
+        self.gravity = 9.8
+        self.masscart = 1.0
+        self.masspole = 0.1
+        self.total_mass = self.masspole + self.masscart
+        self.length = 0.5  # actually half the pole's length
+        self.polemass_length = self.masspole * self.length
+        self.force_mag = 10.0
+        self.tau = 0.02  # seconds between state updates
+        self.kinematics_integrator = "euler"
+        self.max_episode_steps = max_episode_steps
+
+        self.steps = np.zeros(num_envs, dtype=np.int32)
+
+        # Angle at which to fail the episode
+        self.theta_threshold_radians = 12 * 2 * math.pi / 360
+        self.x_threshold = 2.4
+
+        # Angle limit set to 2 * theta_threshold_radians so failing observation
+        # is still within bounds.
+        high = np.array(
+            [
+                self.x_threshold * 2,
+                np.finfo(np.float32).max,
+                self.theta_threshold_radians * 2,
+                np.finfo(np.float32).max,
+            ],
+            dtype=np.float32,
+        )
+
+        self.low = -0.05
+        self.high = 0.05
+
+        self.single_action_space = spaces.Discrete(2)
+        self.action_space = batch_space(self.single_action_space, num_envs)
+        self.single_observation_space = spaces.Box(-high, high, dtype=np.float32)
+        self.observation_space = batch_space(self.single_observation_space, num_envs)
+
+        self.render_mode = render_mode
+
+        self.screen_width = 600
+        self.screen_height = 400
+        self.screens = None
+        self.clocks = None
+        self.isopen = True
+        self.state = None
+
+        self.steps_beyond_terminated = None
+
+    def step(
+        self, action: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, dict]:
+        assert self.action_space.contains(
+            action
+        ), f"{action!r} ({type(action)}) invalid"
+        assert self.state is not None, "Call reset before using step method."
+
+        x, x_dot, theta, theta_dot = self.state
+        force = np.sign(action - 0.5) * self.force_mag
+        costheta = np.cos(theta)
+        sintheta = np.sin(theta)
+
+        # For the interested reader:
+        # https://coneural.org/florian/papers/05_cart_pole.pdf
+        temp = (
+            force + self.polemass_length * theta_dot**2 * sintheta
+        ) / self.total_mass
+        thetaacc = (self.gravity * sintheta - costheta * temp) / (
+            self.length * (4.0 / 3.0 - self.masspole * costheta**2 / self.total_mass)
+        )
+        xacc = temp - self.polemass_length * thetaacc * costheta / self.total_mass
+
+        if self.kinematics_integrator == "euler":
+            x = x + self.tau * x_dot
+            x_dot = x_dot + self.tau * xacc
+            theta = theta + self.tau * theta_dot
+            theta_dot = theta_dot + self.tau * thetaacc
+        else:  # semi-implicit euler
+            x_dot = x_dot + self.tau * xacc
+            x = x + self.tau * x_dot
+            theta_dot = theta_dot + self.tau * thetaacc
+            theta = theta + self.tau * theta_dot
+
+        self.state = np.stack((x, x_dot, theta, theta_dot))
+
+        terminated: np.ndarray = (
+            (x < -self.x_threshold)
+            | (x > self.x_threshold)
+            | (theta < -self.theta_threshold_radians)
+            | (theta > self.theta_threshold_radians)
+        )
+
+        self.steps += 1
+
+        truncated = self.steps >= self.max_episode_steps
+
+        done = terminated | truncated
+
+        if any(done):
+            # This code was generated by copilot, need to check if it works
+            self.state[:, done] = self.np_random.uniform(
+                low=self.low, high=self.high, size=(4, done.sum())
+            ).astype(np.float32)
+            self.steps[done] = 0
+
+        reward = np.ones_like(terminated, dtype=np.float32)
+
+        if self.render_mode == "human":
+            self.render()
+
+        return self.state.T, reward, terminated, truncated, {}
+
+    def reset(
+        self,
+        *,
+        seed: Optional[int] = None,
+        options: Optional[dict] = None,
+    ):
+        super().reset(seed=seed)
+        # Note that if you use custom reset bounds, it may lead to out-of-bound
+        # state/observations.
+        self.low, self.high = utils.maybe_parse_reset_bounds(
+            options, -0.05, 0.05  # default low
+        )  # default high
+        self.state = self.np_random.uniform(
+            low=self.low, high=self.high, size=(4, self.num_envs)
+        ).astype(np.float32)
+        self.steps_beyond_terminated = None
+
+        if self.render_mode == "human":
+            self.render()
+        return self.state.T, {}
+
+    def render(self):
+        if self.render_mode is None:
+            gym.logger.warn(
+                "You are calling render method without specifying any render mode. "
+                "You can specify the render_mode at initialization, "
+                f'e.g. gym("{self.spec.id}", render_mode="rgb_array")'
+            )
+            return
+
+        try:
+            import pygame
+            from pygame import gfxdraw
+        except ImportError:
+            raise DependencyNotInstalled(
+                "pygame is not installed, run `pip install gymnasium[classic_control]`"
+            )
+
+        if self.screens is None:
+            pygame.init()
+            if self.render_mode == "human":
+                pygame.display.init()
+                self.screens = [
+                    pygame.display.set_mode((self.screen_width, self.screen_height))
+                    for _ in range(self.num_envs)
+                ]
+            else:  # mode == "rgb_array"
+                self.screens = [
+                    pygame.Surface((self.screen_width, self.screen_height))
+                    for _ in range(self.num_envs)
+                ]
+        if self.clocks is None:
+            self.clock = [pygame.time.Clock() for _ in range(self.num_envs)]
+
+        world_width = self.x_threshold * 2
+        scale = self.screen_width / world_width
+        polewidth = 10.0
+        polelen = scale * (2 * self.length)
+        cartwidth = 50.0
+        cartheight = 30.0
+
+        if self.state is None:
+            return None
+
+        for state, screen, clock in zip(self.state, self.screens, self.clocks):
+            x = self.state.T
+
+            self.surf = pygame.Surface((self.screen_width, self.screen_height))
+            self.surf.fill((255, 255, 255))
+
+            l, r, t, b = -cartwidth / 2, cartwidth / 2, cartheight / 2, -cartheight / 2
+            axleoffset = cartheight / 4.0
+            cartx = x[0] * scale + self.screen_width / 2.0  # MIDDLE OF CART
+            carty = 100  # TOP OF CART
+            cart_coords = [(l, b), (l, t), (r, t), (r, b)]
+            cart_coords = [(c[0] + cartx, c[1] + carty) for c in cart_coords]
+            gfxdraw.aapolygon(self.surf, cart_coords, (0, 0, 0))
+            gfxdraw.filled_polygon(self.surf, cart_coords, (0, 0, 0))
+
+            l, r, t, b = (
+                -polewidth / 2,
+                polewidth / 2,
+                polelen - polewidth / 2,
+                -polewidth / 2,
+            )
+
+            pole_coords = []
+            for coord in [(l, b), (l, t), (r, t), (r, b)]:
+                coord = pygame.math.Vector2(coord).rotate_rad(-x[2])
+                coord = (coord[0] + cartx, coord[1] + carty + axleoffset)
+                pole_coords.append(coord)
+            gfxdraw.aapolygon(self.surf, pole_coords, (202, 152, 101))
+            gfxdraw.filled_polygon(self.surf, pole_coords, (202, 152, 101))
+
+            gfxdraw.aacircle(
+                self.surf,
+                int(cartx),
+                int(carty + axleoffset),
+                int(polewidth / 2),
+                (129, 132, 203),
+            )
+            gfxdraw.filled_circle(
+                self.surf,
+                int(cartx),
+                int(carty + axleoffset),
+                int(polewidth / 2),
+                (129, 132, 203),
+            )
+
+            gfxdraw.hline(self.surf, 0, self.screen_width, carty, (0, 0, 0))
+
+            self.surf = pygame.transform.flip(self.surf, False, True)
+            screen.blit(self.surf, (0, 0))
+
+        if self.render_mode == "human":
+            pygame.event.pump()
+            [clock.tick(self.metadata["render_fps"]) for clock in self.clocks]
+            pygame.display.flip()
+
+        elif self.render_mode == "rgb_array":
+            return [
+                np.transpose(
+                    np.array(pygame.surfarray.pixels3d(screen)), axes=(1, 0, 2)
+                )
+                for screen in self.screens
+            ]
+
+    def close(self):
+        if self.screens is not None:
             import pygame
 
             pygame.display.quit()
