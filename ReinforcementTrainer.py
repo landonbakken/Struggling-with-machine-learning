@@ -11,7 +11,7 @@ from stable_baselines3.common.env_util import make_vec_env
 
 
 def ShowResult():
-    print("Showing result. Ctrl + C to quit")
+    print("\nShowing result. Ctrl + C to quit")
     env = make_vec_env(environment_name, seed=1, n_envs=1)
     obs = env.reset()
     while True:
@@ -22,15 +22,15 @@ def ShowResult():
 
 def TrainModel():
     # get steps to train
-    steps = input("Steps: ")
+    steps = input("\nSteps to train: ")
     if steps == "0" or steps == "":
         return
     else:
         steps = int(steps)
 
     print("training...")
-    model.learn(total_timesteps=steps, reset_num_timesteps=False)
-    if input("save model (y/n)?") == "y":
+    model.learn(total_timesteps=steps, reset_num_timesteps=False, progress_bar=True)
+    if input("\nsave model (y/n)?") == "y":
         model.save("saves/" + input("Save as: "))
         print("done")
 
@@ -40,11 +40,11 @@ print("\nEnvironment:\n0: Bipedal Walker\n1: Lunar Lander\n2: Cart Pole")
 environment_name = environments[int(input("? "))]
 env = make_vec_env(environment_name, seed=1, n_envs=4)
 
-if input("Load past model (y/n)?") == "y":
-    model = PPO.load("saves/" + input("File: "), env)
+if input("\nLoad past model (y/n)?") == "y":
+    model = PPO.load("saves/" + input("File Name: "), env)
 else:
     print("creating model...")
-    model = PPO("MlpPolicy", env, verbose=1, device="auto")
+    model = PPO("MlpPolicy", env, verbose=0, device="auto")
 
 TrainModel()
 ShowResult()
