@@ -15,8 +15,10 @@ from gymnasium.error import DependencyNotInstalled
 from gymnasium.experimental.vector import VectorEnv
 from gymnasium.vector.utils import batch_space
 
+from stable_baselines3.common.env_checker import check_env
 
-class CustomEnv(gym.Env[np.ndarray, Union[int, np.ndarray]]):
+
+class CartPole(gym.Env[np.ndarray, Union[int, np.ndarray]]):
     """
     ## Description
 
