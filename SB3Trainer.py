@@ -11,7 +11,6 @@ import gymnasium as gym
 from stable_baselines3 import PPO
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.env_checker import check_env
-from pettingzoo.classic import tictactoe_v3
 from custom_env import CustomEnv
 
 
