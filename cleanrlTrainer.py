@@ -15,6 +15,7 @@ import torch.optim as optim
 from supersuit import color_reduction_v0, frame_stack_v1, resize_v1
 from torch.distributions.categorical import Categorical
 
+from pettingzoo.atari import tennis_v3
 from pettingzoo.butterfly import pistonball_v6
 
 
@@ -97,7 +98,7 @@ if __name__ == "__main__":
     stack_size = 4
     frame_size = (64, 64)
     max_cycles = 125
-    total_episodes = 1000  # 2
+    total_episodes = 100  # 2
 
     """ ENV SETUP """
     env = pistonball_v6.parallel_env(
@@ -266,6 +267,7 @@ if __name__ == "__main__":
 
     with torch.no_grad():
         # render 5 episodes out
+        input("Enter to show result")
         for episode in range(5):
             obs, infos = env.reset(seed=None)
             obs = batchify_obs(obs, device)
