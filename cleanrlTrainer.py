@@ -15,16 +15,17 @@ import torch.optim as optim
 from supersuit import color_reduction_v0, frame_stack_v1, resize_v1
 from torch.distributions.categorical import Categorical
 
-from pettingzoo.atari import tennis_v3
 from pettingzoo.butterfly import pistonball_v6
 
 
 class Agent(nn.Module):
     def __init__(self, num_actions):
-        super().__init__()
+        super().__init__()  # initialize nn.Module
 
-        self.network = nn.Sequential(
-            self._layer_init(nn.Conv2d(4, 32, 3, padding=1)),
+        self.network = nn.Sequential(  # create nural network
+            self._layer_init(
+                nn.Conv2d(4, 32, 3, padding=1)
+            ),  # 4 inputs, 32 outputs, 3x3 kernal, and padding to make sure edge data is considered
             nn.MaxPool2d(2),
             nn.ReLU(),
             self._layer_init(nn.Conv2d(32, 64, 3, padding=1)),
