@@ -22,26 +22,28 @@ class Agent(nn.Module):
     def __init__(self, num_actions):
         super().__init__()  # initialize nn.Module
 
-        self.network = nn.Sequential(  # create nural network
+        self.network = nn.Sequential(  # create nural network, each item is another layer
             self._layer_init(
                 nn.Conv2d(4, 32, 3, padding=1)
             ),  # 4 inputs, 32 outputs, 3x3 kernal, and padding to make sure edge data is considered
-            nn.MaxPool2d(2),
-            nn.ReLU(),
+            nn.MaxPool2d(2),  # makes network more efficient by trimming pool down
+            nn.ReLU(),  # for learning complex/de-linearizing things. Converts negative numbers to 0
             self._layer_init(nn.Conv2d(32, 64, 3, padding=1)),
             nn.MaxPool2d(2),
             nn.ReLU(),
             self._layer_init(nn.Conv2d(64, 128, 3, padding=1)),
             nn.MaxPool2d(2),
             nn.ReLU(),
-            nn.Flatten(),
-            self._layer_init(nn.Linear(128 * 8 * 8, 512)),
+            nn.Flatten(),  # converts to 1D
+            self._layer_init(
+                nn.Linear(128 * 8 * 8, 512)
+            ),  # 128 * 8 * 8 inputs, 512 output
             nn.ReLU(),
         )
         self.actor = self._layer_init(nn.Linear(512, num_actions), std=0.01)
         self.critic = self._layer_init(nn.Linear(512, 1))
 
-    def _layer_init(self, layer, std=np.sqrt(2), bias_const=0.0):
+    def _layer_init(self, layer, std=np.sqrt(2), bias_const=0.0):  # a black box for now
         torch.nn.init.orthogonal_(layer.weight, std)
         torch.nn.init.constant_(layer.bias, bias_const)
         return layer
