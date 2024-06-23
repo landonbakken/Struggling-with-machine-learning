@@ -7,7 +7,7 @@ import time
 episodes = 10000
 graphStep = 100
 
-rewards_draw = -1
+rewards_draw = 0
 rewards_win = 1
 rewards_lose = -1
 
@@ -106,33 +106,70 @@ class QLearningAgent:
     def decay_exploration(self):
         self.exploration_rate *= self.exploration_decay
 
-# Train the agent
-def train_agent(episodes, graphStep, game, randOpponentChance):
-    agent = QLearningAgent()
-    
-    #initialize counters
+def test_agent(agent, games, game):
     winsCount = 0
+    
+    for i in range(games):
+        game.reset()
+        state = agent.get_state(game.board)
+        while True:
+            # Agent's turn
+            available_moves = game.available_moves()
+            action = agent.choose_action(state, available_moves)
+            game.make_move(*action)
+            next_state = agent.get_state(game.board)
+
+            #check for win
+            winner = game.check_winner()
+            if winner is not None:
+                if winner == 1:
+                    winsCount += 1
+                break
+            
+            #update state
+            agent.update_q_table(state, action, 0, next_state)
+            state = next_state
+            
+            # Random opponent's turn
+            available_moves = game.available_moves()
+            action = random.choice(available_moves)
+            game.make_move(*action)
+            next_state = agent.get_state(game.board)
+
+            #check for win
+            winner = game.check_winner()
+            if winner is not None:
+                if winner == 2:
+                    winsCount += 1
+                break
+            
+            #update state
+            agent.update_q_table(state, action, 0, next_state)
+            state = next_state
+            
+    return winsCount/games * 100
+
+# Train the agent
+def train_agent(episodes, graphStep, game):
+    agent = QLearningAgent()
     
     #initialize plot
     plotter = RealTimePlotter(title="Winrate vs Games played", xlabel=f"Games played (x{graphStep})", ylabel="Winrate (%)")
     plotter.show()
 
     for episode in range(episodes):
-        if episode%graphStep == 0 and episode != 0:
+        if episode%graphStep == 0:
             #plot win percent
-            plotter.add_value(winsCount/graphStep * 100)
+            winPercent = test_agent(agent, graphStep, game)
+            plotter.add_value(winPercent)
             plotter.update()
-            
-            #reset counters
-            winsCount = 0
         
+        #start game
         game.reset()
         state = agent.get_state(game.board)
-        randomOpponent = random.random() < randOpponentChance
         while True:
-            available_moves = game.available_moves()
-
             # Agent's turn
+            available_moves = game.available_moves()
             action = agent.choose_action(state, available_moves)
             game.make_move(*action)
             next_state = agent.get_state(game.board)
@@ -140,7 +177,6 @@ def train_agent(episodes, graphStep, game, randOpponentChance):
 
             if winner is not None:
                 if winner == 1:
-                    winsCount += 1
                     reward = rewards_win
                 elif winner == 2:
                     reward = rewards_lose
@@ -152,60 +188,64 @@ def train_agent(episodes, graphStep, game, randOpponentChance):
                 agent.update_q_table(state, action, 0, next_state)
                 state = next_state
 
-            if randomOpponent:
-                # Random opponent's turn
-                available_moves = game.available_moves()
-                action = random.choice(available_moves)
-                game.make_move(*action)
-                next_state = agent.get_state(game.board)
-                winner = game.check_winner()
-
-                if winner is not None:
-                    if winner == 1:
-                        reward = rewards_lose  # Opposite reward for the agent
-                    elif winner == 2:
-                        winsCount += 1
-                        reward = rewards_win    # Opposite reward for the agent
-                    else:
-                        reward = rewards_draw
-                    agent.update_q_table(state, action, reward, next_state)
-                    break
-                else:
-                    agent.update_q_table(state, action, 0, next_state)
-                    state = next_state
-
         agent.decay_exploration()
     return agent
 
 # Play a game against the trained agent
-def play_game(agent):
-    game = TicTacToe()
-    game.reset()
-    state = agent.get_state(game.board)
-    while True:
-        available_moves = game.available_moves()
-        if game.current_player == 1: #q-learning
-            action = agent.choose_action(state, available_moves)
-        else:
-            action = random.choice(available_moves)
-        game.make_move(*action)
+def play_game(agent, game):
+    #agent vs human:
+    playAgain = True
+    while playAgain:
+        print("Welcome to Tic-Tac-Toe against the Q-learning Agent!")
+        print("You are playing as 'O'. Enter your moves in the format 'row,col'. For example, '1,2' for the second row and third column.")
+
+        game.reset()
         state = agent.get_state(game.board)
-        winner = game.check_winner()
-        if winner is not None:
-            return winner
+        while True:
+            # Print the current board state
+            print(game.board,"\n")
+
+            # Human player's turn
+            if game.current_player == 2:
+                while True:
+                    try:
+                        move = input("Enter your move (row,col): ")
+                        row, col = map(int, move.split(','))
+                        if (row, col) in game.available_moves():
+                            break
+                        else:
+                            print("Invalid move. Try again.")
+                    except ValueError:
+                        print("Invalid input format. Please enter row,col (e.g., '1,2').")
+
+                game.make_move(row, col)
+                state = agent.get_state(game.board)
+            else:
+                # Agent's turn
+                available_moves = game.available_moves()
+                action = agent.choose_action(state, available_moves)
+                game.make_move(*action)
+                state = agent.get_state(game.board)
+
+            winner = game.check_winner()
+            if winner is not None:
+                print(game.board)
+                if winner == 1:
+                    print("Agent wins!")
+                elif winner == 2:
+                    print("Human wins!")
+                else:
+                    print("It's a draw!")
+                break
+
+        print("Game Over!")
+        playAgain = input("y to play again") == "y"
 
 # Main script
-if __name__ == "__main__":
-    startTime = time.time()
-    trained_agent = train_agent(episodes, graphStep, TicTacToe(), .8)
-    print(f"{round(time.time() - startTime)} seconds for {episodes} episodes")
-    results = {"Agent": 0, "Random": 0, "Draw": 0}
-    for _ in range(100):
-        result = play_game(trained_agent)
-        if result == 1:
-            results["Agent"] += 1
-        elif result == 2:
-            results["Random"] += 1
-        else:
-            results["Draw"] += 1
-    print(results)
+startTime = time.time()
+trained_agent = train_agent(episodes, graphStep, TicTacToe())
+winrate = test_agent(trained_agent, 100, TicTacToe())
+print(f"{round(time.time() - startTime)} seconds for {episodes} episodes with {winrate} winrate")
+
+#let human play:
+play_game(trained_agent, TicTacToe())
