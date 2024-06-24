@@ -3,8 +3,8 @@ import random
 import matplotlib.pyplot as plt
 import time
 
-episodes = 10000
-graphStep = 100
+episodes = 100000
+graphStep = 1000
 
 rewards_draw = 0
 rewards_win = 1
@@ -153,15 +153,16 @@ def train_agent(episodes, graphStep, game):
     agent = QLearningAgent()
     
     #initialize plot
-    plotter = RealTimePlotter(title="Winrate vs Games played", xlabel=f"Games played (x{graphStep})", ylabel="Winrate (%)")
-    plotter.show()
+    #plotter = RealTimePlotter(title="Winrate vs Games played", xlabel=f"Games played (x{graphStep})", ylabel="Winrate (%)")
+    #plotter.show()
 
     for episode in range(episodes):
         if episode%graphStep == 0:
             #plot win percent
             winPercent = test_agent(agent, graphStep, game)
-            plotter.add_value(winPercent)
-            plotter.update()
+            print(winPercent)
+            #plotter.add_value(winPercent)
+            #plotter.update()
         
         #start game
         game.reset()

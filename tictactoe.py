@@ -84,31 +84,33 @@ class TicTacToe:
 # Define the Q-learning agent
 class QLearningAgent:
     def __init__(self, learning_rate=0.1, discount_factor=0.9, exploration_rate=1.0, exploration_decay=0.995):
-        self.q_table = tf.Variable(tf.zeros([9]), dtype=tf.float32)  # TensorFlow variable
+        self.q_table = {}
         self.learning_rate = learning_rate
         self.discount_factor = discount_factor
         self.exploration_rate = exploration_rate
         self.exploration_decay = exploration_decay
 
     def get_state(self, board):
-        return tf.constant(str(board.reshape(9)))  # Convert to TensorFlow constant
+        return tuple(board.flatten())  # Use a tuple of the flattened board as the state
 
     def get_q_values(self, state):
-        return tf.gather(self.q_table, state)
+        if state not in self.q_table:
+            self.q_table[state] = tf.Variable(tf.zeros([9]), dtype=tf.float32)  # Initialize Q-values for the state
+        return self.q_table[state]
 
     def choose_action(self, state, available_moves):
         if random.random() < self.exploration_rate:
             return random.choice(available_moves)
-        q_values = self.get_q_values(state)
-        return available_moves[tf.argmax([q_values[i*3 + j] for i, j in available_moves])]
+        q_values = self.get_q_values(state).numpy()  # Convert Tensor to NumPy array for action selection
+        return available_moves[np.argmax([q_values[i*3 + j] for i, j in available_moves])]
 
     def update_q_table(self, state, action, reward, next_state):
         with tf.device('/GPU:0'):  # Execute on GPU
             q_values = self.get_q_values(state)
             max_future_q = tf.reduce_max(self.get_q_values(next_state))
-            action_index = action[0]*3 + action[1]
-            self.q_table[action_index].assign(
-                self.q_table[action_index] + self.learning_rate * (reward + self.discount_factor * max_future_q - q_values[action_index]))
+            action_index = action[0] * 3 + action[1]
+            q_values[action_index].assign(
+                q_values[action_index] + self.learning_rate * (reward + self.discount_factor * max_future_q - q_values[action_index]))
 
     def decay_exploration(self):
         self.exploration_rate *= self.exploration_decay
@@ -162,15 +164,16 @@ def train_agent(episodes, graphStep, game):
     agent = QLearningAgent()
     
     #initialize plot
-    plotter = RealTimePlotter(title="Winrate vs Games played", xlabel=f"Games played (x{graphStep})", ylabel="Winrate (%)")
-    plotter.show()
+    #plotter = RealTimePlotter(title="Winrate vs Games played", xlabel=f"Games played (x{graphStep})", ylabel="Winrate (%)")
+    #plotter.show()
 
     for episode in range(episodes):
         if episode%graphStep == 0:
             #plot win percent
             winPercent = test_agent(agent, graphStep, game)
-            plotter.add_value(winPercent)
-            plotter.update()
+            print(winPercent)
+            #plotter.add_value(winPercent)
+            #plotter.update()
         
         #start game
         game.reset()
