@@ -108,7 +108,7 @@ class ConnectFour:
 
     def reset(self):
         self.board.fill(0)
-        self.current_player = random.randint(1, 2)
+        self.current_player = 1
         self.nextPlace.fill(5) #all of the 5th rows are open
 
     def available_moves(self):
@@ -157,6 +157,10 @@ class ConnectFour:
         if 1 + checkDirection(lastCol, lastRow, 1, 1) + checkDirection(lastCol, lastRow, -1, -1) >= 4:
             return player
         
+        #draw
+        if len(self.available_moves()) == 0:
+            return 3
+        
         return None
     
     def printBoard(self):
@@ -177,7 +181,7 @@ class ConnectFour:
             self.printBoard()
             
             availibleMoves = self.available_moves()
-            if self.current_player == 1 or True: #human
+            if self.current_player == 1: #human
                 message = "Enter a column from 0 to 6, Q to quit"
                 while True:
                     col = input(f"{message}: ")

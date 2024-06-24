@@ -6,7 +6,7 @@ from Game_Library import ConnectFour as Environment
 import math
 
 episodes = 1000000
-graphStep = 10000
+graphStep =10000
 
 #agent settings
 #exploration
@@ -51,32 +51,64 @@ class RealTimePlotter:
 
 # Define the Q-learning agent
 class QLearningAgent:
-    def __init__(self, learning_rate=0.1, discount_factor=0.9, exploration_rate=1.0, exploration_decay=0.9999):
-        self.q_table = {}
-        self.learning_rate = learning_rate
-        self.discount_factor = discount_factor
-        self.exploration_rate = exploration_rate
-        self.exploration_decay = exploration_decay
+    def __init__(self, learning_rate=0.1, discount_factor=0.9, exploration_rate=1.0, exploration_decay=0.9999, noise = 0.1):
+        self.q_table = {} #Q values for every state-action pair (?)
+        self.learning_rate = learning_rate #how fast new information overrides old info (?)
+        self.discount_factor = discount_factor #Determines the importance of future rewards (?)
+        self.exploration_rate = exploration_rate #how random it is when choosing a move
+        self.exploration_decay = exploration_decay #how fast the exploration decays over time to hone in 
+        self.noise = noise
 
     def get_q_values(self, state):
+        #add a Q value if not in dictionary
         if state not in self.q_table:
-            self.q_table[state] = np.zeros(9)
+            self.q_table[state] = np.random.randn(7) * self.noise
+        
+        #return the Q value that matches the state
         return self.q_table[state]
 
     def choose_action(self, state, available_moves):
+        #add randomness so it can improve
         if random.random() < self.exploration_rate:
             return random.choice(available_moves)
+        
+        #gets Q values for the current state
         q_values = self.get_q_values(state)
-        return available_moves[np.argmax([q_values[i*3 + j] for i, j in available_moves])]
+        
+        #returns move with highest Q value
+        return max(available_moves, key=lambda col: q_values[col]) #available_moves[np.argmax([q_values[i*3 + j] for i, j in available_moves])] #for tictactoe
 
     def update_q_table(self, state, action, reward, next_state):
+        #get the Q values for the current state 
         q_values = self.get_q_values(state)
+        
+        #get maximum q value for the next state
         max_future_q = max(self.get_q_values(next_state))
-        q_values[action[0]*3 + action[1]] += self.learning_rate * (reward + self.discount_factor * max_future_q - q_values[action[0]*3 + action[1]])
+        
+        '''
+        Q-learning forumla: 
+        
+        Mathmatically:
+        s = State
+        s' = Next state
+        A = Action
+        A' = Next action
+        a = Learning rate (normally alpha)
+        r = Reward
+        y = Discount factor
+        
+        Q(s, a) = Q(s, a) + a * (r + y * max(Q(s', a')) - Q(s, a))
+        
+        Programmatically:
+        q_values[action] += self.learning_rate * (reward + self.discount_factor * max_future_q - q_values[action])
+        '''
+        
+        q_values[action] += self.learning_rate * (reward + self.discount_factor * max_future_q - q_values[action]) #for connect four
+        #q_values[action[0]*3 + action[1]] += self.learning_rate * (reward + self.discount_factor * max_future_q - q_values[action[0]*3 + action[1]]) #for tic tac toe
 
     def decay_exploration(self):
+        #reduces exploration rate over time so it won't make as many random moves
         self.exploration_rate *= self.exploration_decay
-        #print(self.exploration_rate)
 
 # Train the agent
 def train_agent(episodes, graphStep, game):
@@ -119,13 +151,12 @@ def train_agent(episodes, graphStep, game):
                 action = random.choice(available_moves)
             
             #make move
-            game.make_move(*action)
+            winner = game.make_move(action)
             
             #update state
             next_state = game.get_state()
 
             #checks if there is a win
-            winner = game.check_winner()
             if winner is not None:
                 if winner == rewarded_player: #win
                     reward = rewards_win
@@ -147,17 +178,12 @@ def train_agent(episodes, graphStep, game):
         agent.decay_exploration()
     #return trained agent
     return agent
-'''
-# Main script
+
+
 startTime = time.time()
 trained_agent = train_agent(episodes, graphStep, Environment())
-#winrate = test_agent(trained_agent, 100, Environment())
-print(f"{round(time.time() - startTime)} seconds for {episodes} episodes")# with {winrate} winrate")
+print(f"{round(time.time() - startTime)} seconds for {episodes} episodes")
 
 #let human play:
 game = Environment()
-game.human_game(trained_agent)'''
-
-#for testing
-game = Environment()
-game.human_game(QLearningAgent())
+game.human_game(trained_agent)
