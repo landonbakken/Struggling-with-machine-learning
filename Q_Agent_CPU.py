@@ -6,12 +6,12 @@ from Game_Library import TicTacToe as Environment
 import math
 
 episodes = 1000000
-graphStep = 1000
+graphStep = 10000
 
 #agent settings
 #exploration
 targetEndExploration = 0.001
-startExploration = 0.8
+startExploration = 0.9 #because if it's higher, it doesnt really learn anything, and just wastes time
 
 #rewards
 rewards_draw = 0
@@ -80,7 +80,7 @@ class QLearningAgent:
 
 # Train the agent
 def train_agent(episodes, graphStep, game):
-    #figure out decay
+    #figure out decay: startExploration * exploration_decay ^ ticks = targetEndExploration
     decay = math.e ** (math.log(targetEndExploration/startExploration)/episodes)
     
     #create agent
@@ -100,10 +100,9 @@ def train_agent(episodes, graphStep, game):
             if usePlotter:
                 plotter.add_value(winPercent)
                 plotter.update()
-                print(f"exploration: {agent.exploration_rate}")
             else:
-                print(winPercent)
-                
+                print(f"Win percent: {winPercent}")
+            print(f"Exploration rate: {agent.exploration_rate}")
         
         #start game
         game.reset()
@@ -144,10 +143,8 @@ def train_agent(episodes, graphStep, game):
                 agent.update_q_table(state, action, -.1, next_state)
             #update state
             state = next_state
-        
-        #learn
+        #make it explore less
         agent.decay_exploration()
-        
     #return trained agent
     return agent
 
