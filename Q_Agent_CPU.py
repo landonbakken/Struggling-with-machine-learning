@@ -2,7 +2,7 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import time
-from Game_Library import TicTacToe as Environment
+from Game_Library import ConnectFour as Environment
 import math
 
 episodes = 1000000
@@ -10,7 +10,7 @@ graphStep = 10000
 
 #agent settings
 #exploration
-targetEndExploration = 0.001
+targetEndExploration = 0.0001
 startExploration = 0.9 #because if it's higher, it doesnt really learn anything, and just wastes time
 
 #rewards
@@ -140,14 +140,14 @@ def train_agent(episodes, graphStep, game):
             
             #log actionn if rewarded player did it
             if game.current_player != rewarded_player:
-                agent.update_q_table(state, action, -.1, next_state)
+                agent.update_q_table(state, action, 0, next_state)
             #update state
             state = next_state
         #make it explore less
         agent.decay_exploration()
     #return trained agent
     return agent
-
+'''
 # Main script
 startTime = time.time()
 trained_agent = train_agent(episodes, graphStep, Environment())
@@ -156,4 +156,8 @@ print(f"{round(time.time() - startTime)} seconds for {episodes} episodes")# with
 
 #let human play:
 game = Environment()
-game.human_game(trained_agent)
+game.human_game(trained_agent)'''
+
+#for testing
+game = Environment()
+game.human_game(QLearningAgent())
