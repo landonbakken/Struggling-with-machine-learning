@@ -8,6 +8,12 @@ import math
 episodes = 1000000
 graphStep = 1000
 
+#agent settings
+#exploration
+targetEndExploration = 0.001
+startExploration = 0.8
+
+#rewards
 rewards_draw = 0
 rewards_win = 1
 rewards_lose = -1
@@ -75,11 +81,10 @@ class QLearningAgent:
 # Train the agent
 def train_agent(episodes, graphStep, game):
     #figure out decay
-    targetEndExploration = .01
-    decay = math.e ** (math.log(targetEndExploration)/episodes)
+    decay = math.e ** (math.log(targetEndExploration/startExploration)/episodes)
     
     #create agent
-    agent = QLearningAgent(exploration_decay=decay)
+    agent = QLearningAgent(exploration_decay=decay, exploration_rate=startExploration)
     
     #initialize plot
     if usePlotter:
@@ -136,7 +141,7 @@ def train_agent(episodes, graphStep, game):
             
             #log actionn if rewarded player did it
             if game.current_player != rewarded_player:
-                agent.update_q_table(state, action, 0, next_state)
+                agent.update_q_table(state, action, -.1, next_state)
             #update state
             state = next_state
         
