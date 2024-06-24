@@ -2,20 +2,16 @@ import numpy as np
 import random
 import matplotlib.pyplot as plt
 import time
-import tensorflow as tf
+from games import TicTacToe
 
-if tf.test.gpu_device_name():
-    print('GPU found')
-else:
-    print("No GPU found. Please ensure TensorFlow is configured correctly.")
-    exit()
-
-episodes = 10000
-graphStep = 100
+episodes = 100000
+graphStep = 1000
 
 rewards_draw = 0
 rewards_win = 1
 rewards_lose = -1
+
+usePlotter = True
 
 class RealTimePlotter:
     def __init__(self, title="Change Over Time", xlabel="Time", ylabel="Value"):
@@ -46,41 +42,6 @@ class RealTimePlotter:
     def show(self):
         plt.show()
 
-
-# Define the Tic-Tac-Toe board
-class TicTacToe:
-    def __init__(self):
-        self.board = np.zeros((3, 3), dtype=int)
-        self.current_player = 1
-
-    def reset(self):
-        self.board.fill(0)
-        self.current_player = 1
-
-    def available_moves(self):
-        return [(i, j) for i in range(3) for j in range(3) if self.board[i, j] == 0]
-
-    def make_move(self, row, col):
-        if self.board[row, col] == 0:
-            self.board[row, col] = self.current_player
-            self.current_player = 3 - self.current_player
-            return True
-        return False
-
-    def check_winner(self):
-        for i in range(3):
-            if np.all(self.board[i, :] == self.board[i, 0]) and self.board[i, 0] != 0:
-                return self.board[i, 0]
-            if np.all(self.board[:, i] == self.board[0, i]) and self.board[0, i] != 0:
-                return self.board[0, i]
-        if self.board[0, 0] == self.board[1, 1] == self.board[2, 2] != 0:
-            return self.board[0, 0]
-        if self.board[0, 2] == self.board[1, 1] == self.board[2, 0] != 0:
-            return self.board[0, 2]
-        if not self.available_moves():
-            return 0
-        return None
-
 # Define the Q-learning agent
 class QLearningAgent:
     def __init__(self, learning_rate=0.1, discount_factor=0.9, exploration_rate=1.0, exploration_decay=0.995):
@@ -91,30 +52,26 @@ class QLearningAgent:
         self.exploration_decay = exploration_decay
 
     def get_state(self, board):
-        return tuple(board.flatten())  # Use a tuple of the flattened board as the state
+        return str(board.reshape(9))
 
     def get_q_values(self, state):
         if state not in self.q_table:
-            self.q_table[state] = tf.Variable(tf.zeros([9]), dtype=tf.float32)  # Initialize Q-values for the state
+            self.q_table[state] = np.zeros(9)
         return self.q_table[state]
 
     def choose_action(self, state, available_moves):
         if random.random() < self.exploration_rate:
             return random.choice(available_moves)
-        q_values = self.get_q_values(state).numpy()  # Convert Tensor to NumPy array for action selection
+        q_values = self.get_q_values(state)
         return available_moves[np.argmax([q_values[i*3 + j] for i, j in available_moves])]
 
     def update_q_table(self, state, action, reward, next_state):
-        with tf.device('/GPU:0'):  # Execute on GPU
-            q_values = self.get_q_values(state)
-            max_future_q = tf.reduce_max(self.get_q_values(next_state))
-            action_index = action[0] * 3 + action[1]
-            q_values[action_index].assign(
-                q_values[action_index] + self.learning_rate * (reward + self.discount_factor * max_future_q - q_values[action_index]))
+        q_values = self.get_q_values(state)
+        max_future_q = max(self.get_q_values(next_state))
+        q_values[action[0]*3 + action[1]] += self.learning_rate * (reward + self.discount_factor * max_future_q - q_values[action[0]*3 + action[1]])
 
     def decay_exploration(self):
         self.exploration_rate *= self.exploration_decay
-
 
 def test_agent(agent, games, game):
     winsCount = 0
