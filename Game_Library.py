@@ -17,11 +17,10 @@ class TicTacToe:
         return str(self.board.reshape(9))
 
     def make_move(self, row, col):
-        if self.board[row, col] == 0:
-            self.board[row, col] = self.current_player
-            self.current_player = 3 - self.current_player
-            return True
-        return False
+        self.board[row, col] = self.current_player
+        self.current_player = 3 - self.current_player
+        
+        return self.check_winner()
 
     def check_winner(self):
         for i in range(3):
@@ -36,6 +35,40 @@ class TicTacToe:
         if not self.available_moves():
             return 0
         return None
+    
+    def test_agent(self, agent, games):
+        wins = 0
+        losses = 0
+        draws = 0
+        
+        for game in range(games):
+            self.reset()
+            state = self.get_state()
+            
+            randomPlayer = random.randint(1, 2)
+            while True:
+                available_moves = self.available_moves()
+                
+                # Random player's turn
+                if self.current_player == randomPlayer:
+                    action = random.choice(available_moves)
+                else:
+                    # Agent's turn
+                    state = self.get_state()
+                    action = agent.choose_action(state, available_moves)
+                    
+                winner = self.make_move(*action)
+
+                if winner is not None:
+                    if winner == 3 - randomPlayer:
+                        wins += 1
+                    elif winner == randomPlayer:
+                        losses += 1
+                    else:
+                        draws += 1
+                    break
+                
+        return wins / games * 100, losses / games * 100, draws / games * 100
     
     def human_game(self, agent):
         playAgain = True
@@ -62,22 +95,21 @@ class TicTacToe:
                                 print("Invalid move. Try again.")
                         except ValueError:
                             print("Invalid input format. Please enter row,col (e.g., '1,2').")
-
-                    self.make_move(row, col)
-                    state = self.get_state()
                 else:
                     # Agent's turn
+                    state = self.get_state()
                     available_moves = self.available_moves()
                     action = agent.choose_action(state, available_moves)
-                    self.make_move(*action)
-                    state = self.get_state()
+                    row = action[0]
+                    col = action[1]
+                    
+                winner = self.make_move(row, col)
 
-                winner = self.check_winner()
                 if winner is not None:
                     print(self.board)
-                    if winner == 1:
+                    if winner == 3 - human_player:
                         print("Agent wins!")
-                    elif winner == 2:
+                    elif winner == human_player:
                         print("Human wins!")
                     else:
                         print("It's a draw!")

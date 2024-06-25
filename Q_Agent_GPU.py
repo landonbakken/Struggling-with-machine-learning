@@ -1,3 +1,4 @@
+#this will probably be out of date compared to the CPU version since it is much easier to debug with CPU
 import numpy as np
 import random
 import matplotlib.pyplot as plt
