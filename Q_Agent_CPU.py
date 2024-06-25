@@ -5,8 +5,8 @@ import time
 from Game_Library import TicTacToe as Environment
 import math
 
-episodes = 100000
-graphStep =100
+episodes = 10000000
+graphStep =10000
 
 #agent settings
 #exploration
@@ -14,8 +14,8 @@ targetEndExploration = 0.001
 startExploration = 1
 
 #rewards
-rewards_draw = -.5
-rewards_win = 1#1
+rewards_draw = -1
+rewards_win = 1
 rewards_lose = -1
 
 usePlotter = True
