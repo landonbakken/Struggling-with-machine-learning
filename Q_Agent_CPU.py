@@ -4,10 +4,9 @@ import matplotlib.pyplot as plt
 import time
 from Game_Library import TicTacToe as Environment
 import math
-import multiprocessing as mp
 
 episodes = 10000000
-graphStep =1
+graphStep =10000
 
 #agent settings
 #exploration
@@ -19,7 +18,7 @@ rewards_draw = -1
 rewards_win = 1
 rewards_lose = -1
 
-usePlotter = False
+usePlotter = True
 
 class RealTimePlotter:
     def __init__(self, title, xlabel, ylabel):
@@ -130,52 +129,6 @@ class QLearningAgent:
         self.exploration_rate *= self.exploration_decay
 
 
-def episodes_worker(agent):
-    #start game
-    game = Environment()
-    game.reset()
-    
-    action = None
-    state = None
-    while True:
-        #get possible moves
-        available_moves = game.available_moves()
-        
-        #store info
-        past_action = action
-        past_state = state
-        
-        #choose move
-        action = agent.choose_action(state, available_moves)
-        
-        #make move
-        winner = game.make_move(*action)
-        
-        #update state
-        next_state = game.get_state()
-
-        #checks if there is a win
-        if winner is not None:
-            #if winner == 3: #draw
-            #    agent.update_q_table(past_state, past_action, rewards_draw, state)
-            #    agent.update_q_table(state, action, rewards_draw, next_state)
-            #else:
-            #    agent.update_q_table(state, action, rewards_win, next_state)
-            #    agent.update_q_table(past_state, past_action, rewards_lose, state)
-                
-                #if winner == 1:
-                    #balanceCounter += 1
-            break
-        
-        #update state
-        state = next_state
-        
-        #log past action
-        #if past_state != None and past_action != None:
-        #    agent.update_q_table(past_state, past_action, 0, state)
-    agent.decay_exploration()
-    print("finished game")
-
 # Train the agent
 def train_agent(episodes, graphStep, game):
     #figure out decay: startExploration * exploration_decay ^ ticks = targetEndExploration
@@ -188,25 +141,15 @@ def train_agent(episodes, graphStep, game):
     if usePlotter:
         plotter = RealTimePlotter(title="Winrate vs Games played", xlabel=f"Games played (x{graphStep})", ylabel="Winrate (%)")
         plotter.show()
-        plotter.add_line("Wins", 'g')
-        plotter.add_line("Losses", 'r')
-        plotter.add_line("Draws", 'b')
-        plotter.add_line("Training Balance", 'k')
 
+    plotter.add_line("Wins", 'g')
+    plotter.add_line("Losses", 'r')
+    plotter.add_line("Draws", 'b')
+    plotter.add_line("Training Balance", 'k')
     
     balanceCounter = graphStep/2
     
-    #get how many processes the cpu can support
-    max_processes = 1#mp.cpu_count()
-    episodes_per_chunk = graphStep * max_processes
-    #split up all episodes into chunks for each testing
-    
-    # Initialize a pool of processes
-    with mp.Pool(max_processes) as pool:
-        # Distribute tasks evenly among the processes
-        pool.map(episodes_worker(agent), range(episodes_per_chunk))
-    
-    '''for episode in range(episodes):
+    for episode in range(episodes):
         if episode%graphStep == 0:
             #plot win percent
             winPercent, lossPercent, drawPercent = game.test_agent(agent, 100)
@@ -218,7 +161,52 @@ def train_agent(episodes, graphStep, game):
                 plotter.add_value(winPercent, "Wins")
                 plotter.add_value(lossPercent, "Losses")
                 plotter.add_value(drawPercent, "Draws")
-                plotter.add_value(balance, "Training Balance")'''
+                plotter.add_value(balance, "Training Balance")
+        
+        #start game
+        game.reset()
+        
+        action = None
+        state = None
+        while True:
+            #get possible moves
+            available_moves = game.available_moves()
+            
+            #store info
+            past_action = action
+            past_state = state
+            
+            #choose move
+            action = agent.choose_action(state, available_moves)
+            
+            #make move
+            winner = game.make_move(*action)
+            
+            #update state
+            next_state = game.get_state()
+
+            #checks if there is a win
+            if winner is not None:
+                if winner == 3: #draw
+                    agent.update_q_table(past_state, past_action, rewards_draw, state)
+                    agent.update_q_table(state, action, rewards_draw, next_state)
+                else:
+                    agent.update_q_table(state, action, rewards_win, next_state)
+                    agent.update_q_table(past_state, past_action, rewards_lose, state)
+                    
+                    if winner == 1:
+                        balanceCounter += 1
+                break
+            
+            #update state
+            state = next_state
+            
+            #log past action
+            if past_state != None and past_action != None:
+                agent.update_q_table(past_state, past_action, 0, state)
+            
+        #make it explore less
+        agent.decay_exploration()
         
     #return trained agent
     return agent
