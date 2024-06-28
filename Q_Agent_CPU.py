@@ -7,7 +7,7 @@ import math
 import multiprocessing as mp
 
 episodes = 10000000
-graphStep =10000
+graphStep =1
 
 #agent settings
 #exploration
@@ -130,7 +130,7 @@ class QLearningAgent:
         self.exploration_rate *= self.exploration_decay
 
 
-def episodes_worker(episode):
+def episodes_worker(agent):
     #start game
     game = Environment()
     game.reset()
@@ -156,12 +156,12 @@ def episodes_worker(episode):
 
         #checks if there is a win
         if winner is not None:
-            if winner == 3: #draw
-                agent.update_q_table(past_state, past_action, rewards_draw, state)
-                agent.update_q_table(state, action, rewards_draw, next_state)
-            else:
-                agent.update_q_table(state, action, rewards_win, next_state)
-                agent.update_q_table(past_state, past_action, rewards_lose, state)
+            #if winner == 3: #draw
+            #    agent.update_q_table(past_state, past_action, rewards_draw, state)
+            #    agent.update_q_table(state, action, rewards_draw, next_state)
+            #else:
+            #    agent.update_q_table(state, action, rewards_win, next_state)
+            #    agent.update_q_table(past_state, past_action, rewards_lose, state)
                 
                 #if winner == 1:
                     #balanceCounter += 1
@@ -171,12 +171,19 @@ def episodes_worker(episode):
         state = next_state
         
         #log past action
-        if past_state != None and past_action != None:
-            agent.update_q_table(past_state, past_action, 0, state)
+        #if past_state != None and past_action != None:
+        #    agent.update_q_table(past_state, past_action, 0, state)
     agent.decay_exploration()
+    print("finished game")
 
 # Train the agent
 def train_agent(episodes, graphStep, game):
+    #figure out decay: startExploration * exploration_decay ^ ticks = targetEndExploration
+    decay = math.e ** (math.log(targetEndExploration/startExploration)/episodes)
+    
+    #create agent
+    agent = QLearningAgent(exploration_decay=decay, exploration_rate=startExploration)
+    
     #initialize plot
     if usePlotter:
         plotter = RealTimePlotter(title="Winrate vs Games played", xlabel=f"Games played (x{graphStep})", ylabel="Winrate (%)")
@@ -190,18 +197,14 @@ def train_agent(episodes, graphStep, game):
     balanceCounter = graphStep/2
     
     #get how many processes the cpu can support
-    max_processes = mp.cpu_count()
+    max_processes = 1#mp.cpu_count()
     episodes_per_chunk = graphStep * max_processes
     #split up all episodes into chunks for each testing
     
     # Initialize a pool of processes
-    chunks = int(episodes/episodes_per_chunk)
-    for i in range(chunks):
-        with mp.Pool(max_processes) as pool:
-            # Distribute tasks evenly among the processes
-            pool.map(episodes_worker, range(episodes_per_chunk))
-        print(f"Chunk: {i}, Winrate: {Environment().test_agent(agent, 100)}, Exploration: {agent.exploration_rate}")
-        
+    with mp.Pool(max_processes) as pool:
+        # Distribute tasks evenly among the processes
+        pool.map(episodes_worker(agent), range(episodes_per_chunk))
     
     '''for episode in range(episodes):
         if episode%graphStep == 0:
@@ -222,17 +225,9 @@ def train_agent(episodes, graphStep, game):
 
 
 startTime = time.time()
-
-#figure out decay: startExploration * exploration_decay ^ ticks = targetEndExploration
-decay = math.e ** (math.log(targetEndExploration/startExploration)/episodes)
-
-#create agent
-agent = QLearningAgent(exploration_decay=decay, exploration_rate=startExploration)
-
-train_agent(episodes, graphStep, Environment())
-winrate = Environment().test_agent(agent, 1000)
-print(f"{round(time.time() - startTime)} seconds for {episodes} episodes with {winrate} win percent")
+trained_agent = train_agent(episodes, graphStep, Environment())
+print(f"{round(time.time() - startTime)} seconds for {episodes} episodes")
 
 #let human play:
-#game = Environment()
-#game.human_game(agent)
+game = Environment()
+game.human_game(trained_agent)
