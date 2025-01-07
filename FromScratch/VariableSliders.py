@@ -22,7 +22,7 @@ class SliderWindow:
 
         # Create labels and sliders
         for idx in range(self.numSliders):
-            slider_label = ttk.Label(root, text=f"Input {idx}")
+            slider_label = ttk.Label(root, text=f"Bias {idx}")
             slider_label.grid(row=0, column=idx, padx=5, pady=5)
 
             slider = ttk.Scale(

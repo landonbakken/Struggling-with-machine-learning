@@ -5,6 +5,7 @@ class InequalityPlotter:
     def plotInequality(self, inequality):
         #clear past plot
         plt.clf()
+        plt.title = "Model (inequality)"
 
         # Create a grid of x, y points
         x = np.linspace(-self.bound, self.bound, self.resolution)  # x values from -10 to 10
