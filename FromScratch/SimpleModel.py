@@ -1,22 +1,21 @@
 from VariableSliders import SliderWindow2D, SliderWindow
 from MathThings import *
 import numpy as np
-from Plotter import InequalityPlotter
-import time
 import math
 
 class Model:
-    def __init__(self, dimentions):
+    def __init__(self, dimentions, plotter, useSliders=False):
         self.layers = []
         self.dimentions = dimentions.copy()
-
-        self.plotter = InequalityPlotter()
+        self.plotter = plotter
 
         numInputs = dimentions.pop(0)
         for layerIndex, numOutputs in enumerate(dimentions):
             layerName = f"Hidden Layer {layerIndex} Weights" if layerIndex != len(dimentions) - 1 else "Ouput Weights"
-            self.layers.append(Layer(numInputs, numOutputs, layerName))
+            self.layers.append(Layer(numInputs, numOutputs, layerName, self, useSliders))
             numInputs = numOutputs
+        
+        self.draw()
     
     def calculate(self, inputs):
         if len(inputs) != self.dimentions[0]:
@@ -27,15 +26,21 @@ class Model:
             inputs = layer.getOutputs(inputs)
 
         return inputs[0] > inputs[1]
+    
+    def draw(self):
+        if self.plotter:
+            self.plotter.plotInequality(self.calculate)
 
 class Layer:
-    def __init__(self, numInputs, numOutputs, layerName):
+    def __init__(self, numInputs, numOutputs, layerName, model, useSliders):
         self.numInputs = numInputs
         self.numOutputs = numOutputs
         self.weights = np.zeros((numInputs, numOutputs))
         self.biases = np.zeros(numOutputs)
-        self.biasSliders = SliderWindow(numOutputs, layerName + " Biases", self.setBiases)
-        self.weightSliders = SliderWindow2D(numInputs, numOutputs, layerName + " Weights", self.setWeights)
+        if useSliders:
+            self.biasSliders = SliderWindow(numOutputs, layerName + " Biases", self.setBiases)
+            self.weightSliders = SliderWindow2D(numInputs, numOutputs, layerName + " Weights", self.setWeights)
+        self.model = model
 
     def getOutputs(self, inputs):
         if len(inputs) != self.numInputs:
@@ -56,20 +61,11 @@ class Layer:
     
     def setBiases(self, newBiases):
         self.biases = newBiases
-
-        model.plotter.plotInequality(model.calculate)
+        self.model.draw()
 
     def setWeights(self, newWeights):
         self.weights = newWeights
+        self.model.draw()
 
-        model.plotter.plotInequality(model.calculate)
-
-#settings
-dimentions = [2, 3, 2]
-
-#create model
-model = Model(dimentions)
-
-while True:
-    time.sleep(.01)
+        
 
