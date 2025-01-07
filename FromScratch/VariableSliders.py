@@ -1,8 +1,45 @@
 import tkinter as tk
 from tkinter import ttk
-import threading
 import numpy as np
-import time
+import threading
+import random
+
+class SliderWindow:
+    def __init__(self, numSliders, title, updateFunction):
+        self.windowTitle = title
+        self.numSliders = numSliders
+        self.updateFunction = updateFunction
+
+        tk_thread = threading.Thread(target=self.buildWindow, daemon=True)
+        tk_thread.start()
+
+    def buildWindow(self):
+        root = tk.Tk()
+        root.title(self.windowTitle)
+
+        # Create a NumPy array to store slider values
+        self.values = np.zeros(self.numSliders)
+
+        # Create labels and sliders
+        for idx in range(self.numSliders):
+            slider_label = ttk.Label(root, text=f"Input {idx}")
+            slider_label.grid(row=0, column=idx, padx=5, pady=5)
+
+            slider = ttk.Scale(
+                root,
+                from_=-1,
+                to=1,
+                orient="horizontal",
+                command=lambda value, i=idx: self.updateValue(value, i),
+                value=random.random()
+            )
+            slider.grid(row=1, column=idx, padx=5, pady=5)
+
+        root.mainloop()
+
+    def updateValue(self, value, idx):
+        self.values[idx] = float(value)
+        self.updateFunction(self.values)
 
 class SliderWindow2D:
     def __init__(self, rows, cols, title, updateFunction):
@@ -17,7 +54,6 @@ class SliderWindow2D:
     def buildWindow(self):
         root = tk.Tk()
         root.title(self.windowTitle)
-        #root.geometry("300x200")
 
         # Create a NumPy array to store slider values
         self.values = np.zeros((self.rows, self.cols))
@@ -35,16 +71,17 @@ class SliderWindow2D:
             for col in range(self.cols):
                 slider = ttk.Scale(
                     root,
-                    from_=0,
+                    from_=-1,
                     to=1,
                     orient="horizontal",
-                    command=lambda value, r=row, c=col: self.update_value(value, r, c),
+                    command=lambda value, r=row, c=col: self.updateValue(value, r, c),
+                    value=random.random()
                 )
                 slider.grid(row=row + 1, column=col + 1, padx=5, pady=5)
-                
+
         root.mainloop()
     
-    def update_value(self, value, row, col):
+    def updateValue(self, value, row, col):
         self.values[row, col] = float(value)
         self.updateFunction(self.values)
 
