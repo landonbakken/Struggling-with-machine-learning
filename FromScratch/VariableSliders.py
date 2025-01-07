@@ -1,38 +1,50 @@
 import tkinter as tk
 from tkinter import ttk
 import threading
+import numpy as np
+import time
 
-
-class sliderWindow:
-    # Create Tkinter window
-    def createTkWindow(self):
-        root = tk.Tk()
-        root.title(self.windowTitle)
-
-        def updateValue(var_name, slider):
-            self.sliderValues[var_name] = slider.get()
-            self.updateFunction(self.sliderValues)
-
-        for i, (label, var_name, min_val, max_val) in enumerate(self.sliderConfig):
-            tk.Label(root, text=label).grid(row=i, column=0)
-            slider = ttk.Scale(root, from_=min_val, to=max_val, orient=tk.HORIZONTAL)
-            slider.set(self.sliderValues[var_name])
-            slider.grid(row=i, column=1)
-            slider.bind("<Motion>", lambda e, var_name=var_name, slider=slider: updateValue(var_name, slider))
-
-        root.mainloop()
-
-    #tkinter window
-    def __init__(self, windowTitle, sliderValues, sliderConfig, updateFunction):
-        self.windowTitle = windowTitle
-
-        # Variables to be controlled by sliders
-        self.sliderValues = sliderValues
-        self.sliderConfig = sliderConfig
-
-        #function that is called when slider values are changed
+class SliderWindow2D:
+    def __init__(self, rows, cols, title, updateFunction):
+        self.windowTitle = title
+        self.rows = rows
+        self.cols = cols
         self.updateFunction = updateFunction
 
-        #start window in different thread
-        tk_thread = threading.Thread(target=self.createTkWindow, daemon=True)
+        tk_thread = threading.Thread(target=self.buildWindow, daemon=True)
         tk_thread.start()
+
+    def buildWindow(self):
+        root = tk.Tk()
+        root.title(self.windowTitle)
+        #root.geometry("300x200")
+
+        # Create a NumPy array to store slider values
+        self.values = np.zeros((self.rows, self.cols))
+
+        # Create labels for columns
+        for col in range(self.cols):
+            label = ttk.Label(root, text=f"Output {col}")
+            label.grid(row=0, column=col + 1, padx=5, pady=5)
+
+        # Create labels for rows and sliders
+        for row in range(self.rows):
+            row_label = ttk.Label(root, text=f"Input {row}")
+            row_label.grid(row=row + 1, column=0, padx=5, pady=5)
+
+            for col in range(self.cols):
+                slider = ttk.Scale(
+                    root,
+                    from_=0,
+                    to=1,
+                    orient="horizontal",
+                    command=lambda value, r=row, c=col: self.update_value(value, r, c),
+                )
+                slider.grid(row=row + 1, column=col + 1, padx=5, pady=5)
+                
+        root.mainloop()
+    
+    def update_value(self, value, row, col):
+        self.values[row, col] = float(value)
+        self.updateFunction(self.values)
+
