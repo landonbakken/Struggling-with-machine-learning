@@ -1,6 +1,9 @@
 from SimpleModel import *
 from Plotter import *
 import random
+import time
+
+radius = 1
 
 def generate_random_points(num_points, condition, x_range=(-100, 100), y_range=(-100, 100)):
     points = []
@@ -12,7 +15,7 @@ def generate_random_points(num_points, condition, x_range=(-100, 100), y_range=(
 
 def testInequality(point):
     x, y = point
-    return x ** 2 + y ** 2 < 50**2 #circle with radius 50
+    return x ** 2 + y ** 2 < radius**2 #circle with radius
 
 #create model
 dimentions = [2, 3, 2]
@@ -22,6 +25,9 @@ model = Model(dimentions, False)
 dataset = generate_random_points(100, testInequality)
 
 #create plot
-plotter = Plotter(testInequality, dataset)
+plotter = Plotter(model.calculate, dataset)
 
-input()
+while True:
+    plotter.updateInequality(testInequality)
+    radius += 1
+    plt.pause(.1)

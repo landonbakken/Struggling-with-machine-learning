@@ -18,25 +18,24 @@ class Plotter:
 		
 		# Initialize the plot
 		self.inequalityPlot = None
-		self.inequalityFunc = inequalityFunc
-		self.updateInequality()
+		self.updateInequality(inequalityFunc)
 		
 		# Set up the plot
 		self.ax.set_aspect('equal')
 		self.ax.set_xlabel('x')
 		self.ax.set_ylabel('y')
 
-		#show
+		#show (without blocking)
 		plt.show(block=False)
 
-	def updateInequality(self):
+	def updateInequality(self, inequalityFunc):
 		#draw inequality
-		self.drawInequality()
+		self.drawInequality(inequalityFunc)
 		
 		#draw everything
 		plt.draw()
 
-	def drawInequality(self):
+	def drawInequality(self, inequalityFunc):
 		# Clear previous plot
 		if self.inequalityPlot is not None:
 			# Remove all contour collections
@@ -49,7 +48,7 @@ class Plotter:
 		# Due to more complex functions
 		for i in range(self.X.shape[0]):
 			for j in range(self.X.shape[1]):
-				Z[i, j] = self.inequalityFunc((self.X[i, j], self.Y[i, j]))
+				Z[i, j] = inequalityFunc((self.X[i, j], self.Y[i, j]))
 
 		# Plot the inequality using contourf
 		contour = self.ax.contourf(
