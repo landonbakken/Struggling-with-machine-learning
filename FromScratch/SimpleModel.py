@@ -4,18 +4,15 @@ import numpy as np
 import math
 
 class Model:
-    def __init__(self, dimentions, plotter, useSliders=False):
+    def __init__(self, dimentions, useSliders=False):
         self.layers = []
         self.dimentions = dimentions.copy()
-        self.plotter = plotter
 
         numInputs = dimentions.pop(0)
         for layerIndex, numOutputs in enumerate(dimentions):
             layerName = f"Hidden Layer {layerIndex} Weights" if layerIndex != len(dimentions) - 1 else "Ouput Weights"
             self.layers.append(Layer(numInputs, numOutputs, layerName, self, useSliders))
             numInputs = numOutputs
-        
-        self.draw()
     
     def calculate(self, inputs):
         if len(inputs) != self.dimentions[0]:
@@ -26,10 +23,6 @@ class Model:
             inputs = layer.getOutputs(inputs)
 
         return inputs[0] > inputs[1]
-    
-    def draw(self):
-        if self.plotter:
-            self.plotter.plotInequality(self.calculate)
 
 class Layer:
     def __init__(self, numInputs, numOutputs, layerName, model, useSliders):
@@ -65,7 +58,6 @@ class Layer:
 
     def setWeights(self, newWeights):
         self.weights = newWeights
-        self.model.draw()
 
         
 

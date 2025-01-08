@@ -10,8 +10,9 @@ class SliderWindow:
         self.numSliders = numSliders
         self.updateFunction = updateFunction
 
-        tk_thread = threading.Thread(target=self.buildWindow, daemon=True)
-        tk_thread.start()
+        #tk_thread = threading.Thread(target=self.buildWindow, daemon=True)
+        #tk_thread.start()
+        self.buildWindow()
 
     def buildWindow(self):
         root = tk.Tk()
