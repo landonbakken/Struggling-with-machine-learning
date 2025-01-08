@@ -1,45 +1,8 @@
 import matplotlib.pyplot as plt
 import numpy as np
-
-def drawInequality(inequalityFunc, ax, X, Y, x_range, y_range):
-	# Evaluate the inequality over the grid
-	Z = np.zeros_like(X)
-
-	#due to more complex functions
-	for i in range(X.shape[0]):
-		for j in range(X.shape[1]):
-			Z[i, j] = inequalityFunc((X[i, j], Y[i, j]))
-		
-	# Plot the inequality
-	img = ax.imshow(
-		Z,
-		extent=[x_range[0], x_range[1], y_range[0], y_range[1]],
-		origin='lower',
-		cmap='RdYlBu',
-		alpha=0.7
-	)
-
-	#draw everything
-	plt.draw()
-
-	return img
-
-def plotScatter(data):
-	# Separate the points based on their boolean values
-	green_points = [(x, y) for x, y, value in data if not value]
-	red_points = [(x, y) for x, y, value in data if value]
-
-	# Unpack the points into x and y coordinates
-	green_x, green_y = zip(*green_points) if green_points else ([], [])
-	red_x, red_y = zip(*red_points) if red_points else ([], [])
-
-	# Create the scatter plot
-	plt.scatter(green_x, green_y, color='green', label='False')
-	plt.scatter(red_x, red_y, color='red', label='True')
 	 
-
-class CombinedPlot:
-	def __init__(self, inequalityFunct, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100):
+class Plotter:
+	def __init__(self, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100):
 		self.fig, self.ax = plt.subplots()
 		self.x_range = x_range
 		self.y_range = y_range
@@ -51,11 +14,11 @@ class CombinedPlot:
 		self.X, self.Y = np.meshgrid(x, y)
 
 		# Scatter plot
-		plotScatter(dataset)
+		self.plotScatter(dataset)
 		
 		# Initialize the plot
-		self.img = None
-		self.inequalityFunct = inequalityFunct
+		self.inequalityPlot = None
+		self.inequalityFunc = inequalityFunc
 		self.updateInequality()
 		
 		# Set up the plot
@@ -67,9 +30,46 @@ class CombinedPlot:
 		plt.show(block=False)
 
 	def updateInequality(self):
-		# Clear previous plot
-		if self.img is not None:
-			self.img.remove()
-
 		#draw inequality
-		self.img = drawInequality(self.inequalityFunct, self.ax, self.X, self.Y, self.x_range, self.y_range)
+		self.drawInequality()
+		
+		#draw everything
+		plt.draw()
+
+	def drawInequality(self):
+		# Clear previous plot
+		if self.inequalityPlot is not None:
+			# Remove all contour collections
+			for contour in self.inequalityPlot.collections:
+				contour.remove()
+
+		# Evaluate the inequality over the grid
+		Z = np.zeros_like(self.X, dtype=bool)
+
+		# Due to more complex functions
+		for i in range(self.X.shape[0]):
+			for j in range(self.X.shape[1]):
+				Z[i, j] = self.inequalityFunc((self.X[i, j], self.Y[i, j]))
+
+		# Plot the inequality using contourf
+		contour = self.ax.contourf(
+			self.X, self.Y, Z,
+			levels=[-0.5, 0.5, 1.5],  # Thresholds for boolean values
+			colors=['red', 'green'],
+			alpha=0.4
+		)
+
+		self.inequalityPlot = contour
+
+	def plotScatter(self, data):
+		# Separate the points based on their boolean values
+		green_points = [(x, y) for x, y, value in data if value]
+		red_points = [(x, y) for x, y, value in data if not value]
+
+		# Unpack the points into x and y coordinates
+		green_x, green_y = zip(*green_points) if green_points else ([], [])
+		red_x, red_y = zip(*red_points) if red_points else ([], [])
+
+		# Create the scatter plot
+		plt.scatter(green_x, green_y, color='green', label='False')
+		plt.scatter(red_x, red_y, color='red', label='True')
