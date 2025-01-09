@@ -13,8 +13,11 @@ POINT_COLOR = WHITE
 #slope, numbers are in coordinate
 SLOPE_STEP = .01
 SLOPE_DISTANCE = 1
-LEARN_RATE = 50
 SLOPE_COLOR = WHITE
+
+#
+STEP_TIME = 0 #.5
+LEARN_RATE = .15 #50
 
 # Dimentionas
 WIDTH = 800
@@ -131,7 +134,7 @@ while running:
 	pygame.display.flip()
 
 	#pause
-	time.sleep(.5)
+	time.sleep(STEP_TIME)
 
 	#reset if hit the bottom
 	if abs(slope) <= .001:

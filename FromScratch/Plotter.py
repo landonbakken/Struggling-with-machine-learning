@@ -2,11 +2,14 @@ import matplotlib.pyplot as plt
 import numpy as np
 	 
 class Plotter:
-	def __init__(self, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100):
+	def __init__(self, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None):
 		self.fig, self.ax = plt.subplots()
 		self.x_range = x_range
 		self.y_range = y_range
 		self.resolution = resolution
+		
+		if onCloseFunction != None:
+			self.fig.canvas.mpl_connect('close_event', onCloseFunction)
 		
 		# Create coordinate grids
 		x = np.linspace(x_range[0], x_range[1], resolution)
