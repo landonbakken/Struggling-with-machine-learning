@@ -28,6 +28,9 @@ model = Model(dimentions)
 #main window
 root = tk.Tk()
 root.title("Controls")
+root.geometry("300x200")
+label = tk.Label(root, text="Cost: N/A")
+label.pack()
 
 #loop through layers
 for layerIndex, layer in enumerate(model.layers):
@@ -45,6 +48,10 @@ dataset = generate_random_points(100, testInequality)
 plotter = Plotter(model.calculate, dataset, onCloseFunction=stop)
 
 while True:
+	#update main gui
+	cost = 0
+	label.config(text=f"Cost: {cost}")
+	
 	#update sliders
 	root.update_idletasks()
 	root.update()
@@ -53,4 +60,4 @@ while True:
 	plotter.updateInequality(model.calculate)
 
 	#delay so cpu doesn't die
-	plt.pause(.1)
+	plt.pause(.01)
