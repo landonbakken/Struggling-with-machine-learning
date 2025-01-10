@@ -1,9 +1,11 @@
-from SimpleModel import *
-from Plotter import *
 import random
 import tkinter as tk
+
+from SimpleModel import *
+from Plotter import *
 from MathThings import *
 from ModelVisualizer import *
+from VariableSliders import *
 
 radius = 60
 x_range = (0, 1)
@@ -37,11 +39,11 @@ numCorrectLabel.pack()
 #loop through layers
 for layerIndex, layer in enumerate(model.layers):
 	#create name
-	layerName = f"Hidden Layer {layerIndex} Weights" if layerIndex != len(dimentions) - 1 else "Ouput Weights"
+	layerName = f"Hidden Layer {layerIndex}" if layerIndex != len(dimentions) - 1 else "Ouput "
 
 	#create slider windows
-	biasSliders = SliderWindow(layer.numOutputs, layerName + " Biases", layer.setBiases, root, range=(-10, 10))
-	weightSliders = SliderWindow2D(layer.numInputs, layer.numOutputs, layerName + " Weights", layer.setWeights, root, range=(-10, 10))
+	biasSliders = SliderWindow(layer.biases, layerName + " Biases", layer.setBiases, root, range=(-10, 10))
+	weightSliders = SliderWindow(layer.weights, layerName + " Weights", layer.setWeights, root, range=(-10, 10))
 
 #get a dataset
 dataset = randomPointsWithCondition(100, testInequality, x_range=x_range, y_range=y_range)

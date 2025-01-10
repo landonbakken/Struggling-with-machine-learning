@@ -1,4 +1,3 @@
-from VariableSliders import SliderWindow2D, SliderWindow
 from MathThings import *
 import numpy as np
 import math
