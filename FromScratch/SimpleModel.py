@@ -18,6 +18,24 @@ class Model:
 		for numOutputs in dimentions:
 			self.layers.append(Layer(numInputs, numOutputs, self))
 			numInputs = numOutputs
+
+	def randomizeValues(self):
+		for layer in self.layers:
+			layer.randomizeValues()
+
+	def getValues(self):
+		weights = []
+		biases = []
+		for layer in self.layers:
+			weights.append(layer.weights)
+			biases.append(layer.biases)
+
+		return weights, biases
+
+	def setValues(self, weights, biases):
+		for layerIndex, layer in enumerate(self.layers):
+			layer.setBiases(biases[layerIndex], True)
+			layer.setWeights(weights[layerIndex], True)
 	
 	def calculate(self, inputs):
 		if len(inputs) != self.dimentions[0]:
@@ -54,9 +72,16 @@ class Layer:
 	def __init__(self, numInputs, numOutputs, model):
 		self.numInputs = numInputs
 		self.numOutputs = numOutputs
-		self.weights = np.zeros((numInputs, numOutputs))
-		self.biases = np.zeros(numOutputs)
+		self.weights = np.random.uniform(low=-10, high=10, size=(numInputs, numOutputs))
+		self.biases = np.random.uniform(low=-10, high=10, size=(numOutputs))
 		self.model = model
+
+	def randomizeValues(self):
+		newWeights = np.random.uniform(low=-10, high=10, size=(self.numInputs, self.numOutputs))
+		newBiases = np.random.uniform(low=-10, high=10, size=(self.numOutputs))
+
+		self.setBiases(newBiases, True)
+		self.setWeights(newWeights, True)
 
 	def getOutputs(self, inputs):
 		if len(inputs) != self.numInputs:
@@ -75,11 +100,17 @@ class Layer:
 	def activationFunction(self, value): 
 		return 1/(1+math.exp(-value))
 	
-	def setBiases(self, newBiases):
+	def setBiases(self, newBiases, setSliders = False):
 		self.biases = newBiases
 
-	def setWeights(self, newWeights):
+		if setSliders and self.biasSliderWindow is not None:
+			self.biasSliderWindow.setValues(newBiases)
+
+	def setWeights(self, newWeights, setSliders = False):
 		self.weights = newWeights
+
+		if setSliders and self.biasSliderWindow is not None:
+			self.weightSliderWindow.setValues(newWeights)
 
 		
 
