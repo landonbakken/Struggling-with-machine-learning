@@ -35,3 +35,16 @@ def mapToRange(value, oldRange, newRange):
 		return (newRange[0] + newRange[1])/2
 	
 	return newRange[0] + (value - oldRange[0]) * (newRange[1] - newRange[0]) / (oldRange[1] - oldRange[0])
+
+def getGradient(curve, point, step):
+	x, y = point
+	z_initial = curve(point)
+
+	xStepped = x + step
+	z_xStepped = curve((xStepped, y))
+
+	yStepped = y + step
+	z_yStepped = curve((x, yStepped))
+
+	return ((z_xStepped - z_initial)/step, (z_yStepped - z_initial)/step)
+
