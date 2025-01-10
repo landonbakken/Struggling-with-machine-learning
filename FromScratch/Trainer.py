@@ -22,7 +22,7 @@ def stop(event):
 	exit()
 	
 #create model
-dimentions = [2, 2]
+dimentions = [2, 3, 2]
 model = Model(dimentions, costFunction=costFunction)
 
 #main window

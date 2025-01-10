@@ -8,8 +8,8 @@ POINT_RADIUS = 5
 POINT_COLOR = WHITE
 
 #slope, numbers are in coordinate
-SLOPE_STEP = .01
-SLOPE_DISTANCE = 1
+SLOPE_STEP = .0000001 #this is dt
+SLOPE_DISTANCE = 1 #just for drawing
 SLOPE_COLOR = WHITE
 
 #
