@@ -1,12 +1,14 @@
 import matplotlib.pyplot as plt
 import numpy as np
-	 
+from MathThings import *
+
 class Plotter:
-	def __init__(self, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None):
+	def __init__(self, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None, decisionLine=.2):
 		self.fig, self.ax = plt.subplots()
 		self.x_range = x_range
 		self.y_range = y_range
 		self.resolution = resolution
+		self.decisionLine = decisionLine
 		
 		if onCloseFunction != None:
 			self.fig.canvas.mpl_connect('close_event', onCloseFunction)
@@ -21,6 +23,7 @@ class Plotter:
 		
 		# Initialize the plot
 		self.inequalityPlot = None
+		self.colorbar = None
 		self.updateInequality(inequalityFunc)
 		
 		# Set up the plot
@@ -45,32 +48,47 @@ class Plotter:
 			for contour in self.inequalityPlot.collections:
 				contour.remove()
 
+		if self.colorbar is not None:
+			self.colorbar.remove()
+
 		# Evaluate the inequality over the grid
-		Z = np.zeros_like(self.X, dtype=bool)
+		Z = np.zeros_like(self.X)
 
 		# Due to more complex functions
 		for i in range(self.X.shape[0]):
 			for j in range(self.X.shape[1]):
-				Z[i, j] = inequalityFunc((self.X[i, j], self.Y[i, j]))
+				valueList = inequalityFunc((self.X[i, j], self.Y[i, j]))
+				value = valueList[0] - valueList[1] #listToBool(valueList)
+				Z[i, j] = value
 
 		# Plot the inequality using contourf
 		contour = self.ax.contourf(
 			self.X, self.Y, Z,
-			levels=[-0.5, 0.5, 1.5],  # Thresholds for boolean values
-			colors=['red', 'green'],
-			alpha=0.4
+			levels=20,
+			cmap='RdYlGn',
+			alpha=0.4,
+			#vmin=-1,
+			#vmax=1
 		)
 
+		self.colorbar = plt.colorbar(contour)
+		self.colorbar.set_label("True/False (the larger the more confident)")
 		self.inequalityPlot = contour
 
-	def plotScatter(self, data):
+	def plotScatter(self, dataset):
 		# Separate the points based on their boolean values
-		green_points = [(x, y) for x, y, value in data if value]
-		red_points = [(x, y) for x, y, value in data if not value]
+		greenPoints = []
+		redPoints = []
+		for datapoint in dataset:
+			point = (datapoint.inputs[0], datapoint.inputs[1])
+			if datapoint.pointColor == "green":
+				greenPoints.append(point)
+			else:
+				redPoints.append(point)
 
 		# Unpack the points into x and y coordinates
-		green_x, green_y = zip(*green_points) if green_points else ([], [])
-		red_x, red_y = zip(*red_points) if red_points else ([], [])
+		green_x, green_y = zip(*greenPoints) if greenPoints else ([], [])
+		red_x, red_y = zip(*redPoints) if redPoints else ([], [])
 
 		# Create the scatter plot
 		plt.scatter(green_x, green_y, color='green', label='False')

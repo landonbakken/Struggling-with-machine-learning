@@ -3,46 +3,53 @@ from MathThings import *
 import numpy as np
 import math
 
+class Datapoint:
+	def __init__(self, inputs, condition):
+		self.inputs = inputs
+		self.expectedOutputs = condition(inputs)
+		self.pointColor = "green" if self.expectedOutputs[0] == 1 else "red" #really just for true/false (2 output nodes)
+
 class Model:
-	def __init__(self, dimentions):
+	def __init__(self, dimentions, costFunction):
 		self.layers = []
 		self.dimentions = dimentions.copy()
+		self.costFunction = costFunction
 
 		numInputs = dimentions.pop(0)
-		for layerIndex, numOutputs in enumerate(dimentions):
+		for numOutputs in dimentions:
 			self.layers.append(Layer(numInputs, numOutputs, self))
 			numInputs = numOutputs
 	
 	def calculate(self, inputs):
 		if len(inputs) != self.dimentions[0]:
 			print("Inputs do not match")
-			return None
+			return
 
 		for layer in self.layers:
 			inputs = layer.getOutputs(inputs)
 
-		return inputs[0] > inputs[1]
-	
-	def costFunction(calculated, expected):
-		error = calculated - expected
-		return error ** 2 #emphasises larger errors (and makes positive)
+		return inputs
 
-	def getCost(self, inputs, expectedOutputs):
-		outputs = self.calculate(inputs)
+	def getCost(self, datapoint):
+		outputs = self.calculate(datapoint.inputs)
+		#print(outputs)
 
 		cost = 0
 		for outputIndex in range(len(outputs)):
-			cost += self.costFunction(outputs[outputIndex], expectedOutputs[outputIndex])
-		return cost
-	
-	def getTotalCost(self, inputsList, expectedOutputsList):
-		totalCost = 0
-
-		for dataPoint in range(len(inputsList)):
-			totalCost += self.cost(inputsList[dataPoint], expectedOutputsList[dataPoint])
+			cost += self.costFunction(outputs[outputIndex], datapoint.expectedOutputs[outputIndex])
 		
-		return totalCost / len(inputsList) #return average
-
+		return cost, listToBool(datapoint.expectedOutputs) == listToBool(outputs)
+	
+	def getTotalCost(self, dataset):
+		totalCost = 0
+		totalCorrect = 0
+		for datapoint in dataset:
+			cost, wasRight = self.getCost(datapoint)
+			totalCost += cost
+			if wasRight:
+				totalCorrect += 1
+		
+		return totalCost / len(dataset), totalCorrect #return average
 
 class Layer:
 	def __init__(self, numInputs, numOutputs, model):

@@ -4,11 +4,12 @@ import numpy as np
 import random
 
 class SliderWindow:
-    def __init__(self, numSliders, title, updateFunction, root):
+    def __init__(self, numSliders, title, updateFunction, root, range = (-1, 1)):
         self.root = tk.Toplevel(root)
         self.windowTitle = title
         self.numSliders = numSliders
         self.updateFunction = updateFunction
+        self.range = range
 
         self.buildWindow()
 
@@ -25,8 +26,8 @@ class SliderWindow:
 
             slider = ttk.Scale(
                 self.root,
-                from_=-1,
-                to=1,
+                from_=self.range[0],
+                to=self.range[1],
                 orient="horizontal",
                 command=lambda value, i=idx: self.updateValue(value, i),
                 value=random.random()
@@ -38,12 +39,13 @@ class SliderWindow:
         self.updateFunction(self.values)
 
 class SliderWindow2D:
-    def __init__(self, rows, cols, title, updateFunction, root):
+    def __init__(self, rows, cols, title, updateFunction, root, range = (-1, 1)):
         self.root = tk.Toplevel(root)
         self.windowTitle = title
         self.rows = rows
         self.cols = cols
         self.updateFunction = updateFunction
+        self.range = range
 
         self.buildWindow()
 
@@ -66,8 +68,8 @@ class SliderWindow2D:
             for col in range(self.cols):
                 slider = ttk.Scale(
                     self.root,
-                    from_=-1,
-                    to=1,
+                    from_=self.range[0],
+                    to=self.range[1],
                     orient="horizontal",
                     command=lambda value, r=row, c=col: self.updateValue(value, r, c),
                     value=random.random()
