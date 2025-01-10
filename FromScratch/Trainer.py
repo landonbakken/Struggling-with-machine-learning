@@ -2,9 +2,10 @@ from SimpleModel import *
 from Plotter import *
 import random
 import tkinter as tk
+from MathThings import *
+from ModelVisualizer import *
 
 radius = 60
-decisionLine=.2
 x_range = (0, 1)
 y_range = (0, 1)
 
@@ -17,20 +18,11 @@ def randomPointsWithCondition(num_points, condition, x_range=(-100, 100), y_rang
 		dataPoints.append(newDataPoint)
 	return dataPoints
 
-def testInequality(points):
-	x, y = points
-	result = x < .5#** 2 + y ** 2 < radius**2 #circle with radius
-	return [1, 0] if result else [0, 1] #convert to list format
-
 def stop(event):
 	exit()
 	
-def costFunction(calculated, expected):
-	error = calculated - expected
-	return abs(error) #emphasises larger errors (and makes positive)
-
 #create model
-dimentions = [2, 3, 2]
+dimentions = [2, 2]
 model = Model(dimentions, costFunction=costFunction)
 
 #main window
@@ -42,22 +34,23 @@ costLabel.pack()
 numCorrectLabel = tk.Label(root, text="Correct: N/A")
 numCorrectLabel.pack()
 
-ranges = [(-10, 10), (-2, 2), (-5, 5), (-10, 10)]
 #loop through layers
 for layerIndex, layer in enumerate(model.layers):
 	#create name
 	layerName = f"Hidden Layer {layerIndex} Weights" if layerIndex != len(dimentions) - 1 else "Ouput Weights"
 
 	#create slider windows
-	biasSliders = SliderWindow(layer.numOutputs, layerName + " Biases", layer.setBiases, root, range=ranges[layerIndex])
-	weightSliders = SliderWindow2D(layer.numInputs, layer.numOutputs, layerName + " Weights", layer.setWeights, root, range=ranges[layerIndex + 1])
+	biasSliders = SliderWindow(layer.numOutputs, layerName + " Biases", layer.setBiases, root, range=(-10, 10))
+	weightSliders = SliderWindow2D(layer.numInputs, layer.numOutputs, layerName + " Weights", layer.setWeights, root, range=(-10, 10))
 
 #get a dataset
 dataset = randomPointsWithCondition(100, testInequality, x_range=x_range, y_range=y_range)
 totalDatapoints = len(dataset)
 
 #create plot
-plotter = Plotter(model.calculate, dataset, onCloseFunction=stop, decisionLine=decisionLine, x_range=x_range, y_range=y_range)
+plotter = Plotter(model.calculate, dataset, onCloseFunction=stop, x_range=x_range, y_range=y_range)
+
+visualizer = ModelVisualizer(model)
 
 while True:
 	#update main gui
@@ -72,5 +65,8 @@ while True:
 	#update plotter
 	plotter.updateInequality(model.calculate)
 
-	#delay so cpu doesn't die
-	plt.pause(.01)
+	#show updated model
+	visualizer.update()
+
+	#if nothing else is in this loop, add this
+	#plt.pause(.01)

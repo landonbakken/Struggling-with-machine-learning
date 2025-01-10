@@ -1,10 +1,7 @@
 import pygame
 import random
 import time
-
-# Colors
-BLACK = (0, 0, 0)
-WHITE = (255, 255, 255)
+from MathThings import *
 
 #point settings
 POINT_RADIUS = 5
@@ -33,16 +30,6 @@ y_range = (-3, 3)
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("Gradient Decent")
-
-# Define the function to graph
-def mathFunction(x):
-	return .2 * x**4 + .1 * x**3 - x**2
-
-def pixelToCoord(value, scale, windowSize):
-	return (value - windowSize / 2) / scale
-
-def coordToPixel(value, scale, windowSize):
-	return int(windowSize / 2 - value * scale)
 
 def xPixelToPoint(x_pixel, lineFunction):
 	# Convert pixel to coordinate

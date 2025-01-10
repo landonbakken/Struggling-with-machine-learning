@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 import numpy as np
 import random
+from MathThings import *
 
 class SliderWindow:
     def __init__(self, numSliders, title, updateFunction, root, range = (-1, 1)):
@@ -23,6 +24,7 @@ class SliderWindow:
         for idx in range(self.numSliders):
             slider_label = ttk.Label(self.root, text=f"Bias {idx}")
             slider_label.grid(row=0, column=idx, padx=5, pady=5)
+            value = mapToRange(random.random(), (-1, 1), self.range)
 
             slider = ttk.Scale(
                 self.root,
@@ -30,9 +32,11 @@ class SliderWindow:
                 to=self.range[1],
                 orient="horizontal",
                 command=lambda value, i=idx: self.updateValue(value, i),
-                value=random.random()
+                value = value
             )
             slider.grid(row=1, column=idx, padx=5, pady=5)
+
+            self.updateValue(value, idx)
 
     def updateValue(self, value, idx):
         self.values[idx] = float(value)
@@ -64,6 +68,7 @@ class SliderWindow2D:
         for row in range(self.rows):
             row_label = ttk.Label(self.root, text=f"Input {row}")
             row_label.grid(row=row + 1, column=0, padx=5, pady=5)
+            value = mapToRange(random.random(), (-1, 1), self.range)
 
             for col in range(self.cols):
                 slider = ttk.Scale(
@@ -72,9 +77,12 @@ class SliderWindow2D:
                     to=self.range[1],
                     orient="horizontal",
                     command=lambda value, r=row, c=col: self.updateValue(value, r, c),
-                    value=random.random()
+                    value=value
                 )
                 slider.grid(row=row + 1, column=col + 1, padx=5, pady=5)
+
+                #initial update
+                self.updateValue(value, row, col)
     
     def updateValue(self, value, row, col):
         self.values[row, col] = float(value)

@@ -3,12 +3,11 @@ import numpy as np
 from MathThings import *
 
 class Plotter:
-	def __init__(self, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None, decisionLine=.2):
+	def __init__(self, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None):
 		self.fig, self.ax = plt.subplots()
 		self.x_range = x_range
 		self.y_range = y_range
 		self.resolution = resolution
-		self.decisionLine = decisionLine
 		
 		if onCloseFunction != None:
 			self.fig.canvas.mpl_connect('close_event', onCloseFunction)
@@ -66,9 +65,7 @@ class Plotter:
 			self.X, self.Y, Z,
 			levels=20,
 			cmap='RdYlGn',
-			alpha=0.4,
-			#vmin=-1,
-			#vmax=1
+			alpha=0.4
 		)
 
 		self.colorbar = plt.colorbar(contour)
