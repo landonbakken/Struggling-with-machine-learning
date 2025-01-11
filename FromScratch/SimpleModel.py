@@ -109,6 +109,9 @@ class Layer:
 		self.biases = np.random.uniform(low=-10, high=10, size=(numOutputs))
 		self.model = model
 
+		self.biasSliderWindow = None
+		self.weightSliderWindow = None
+
 		#initialize gradients
 		self.biasCostGradients = np.zeros_like(self.biases)
 		self.weightCostGradients = np.zeros_like(self.weights)

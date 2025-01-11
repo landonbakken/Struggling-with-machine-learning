@@ -2,6 +2,7 @@ import random
 import tkinter as tk
 import pickle
 import os
+import time
 
 from SimpleModel import *
 from Plotter import *
@@ -19,7 +20,7 @@ memoryFile = memoryPath + "memory.pickle"
 learnRate = 1
 datasetSize = 300
 batchSize = 25
-learnsPerDisplay = 100
+fps = 15
 
 if not os.path.exists(memoryPath):
     os.makedirs(memoryPath)
@@ -82,14 +83,14 @@ button2.pack(pady=10)
 button3 = tk.Button(root, text="Randomize", command=randomizeValues)
 button3.pack(pady=10)
 
-#loop through layers
-for layerIndex, layer in enumerate(model.layers):
-	#create name
-	layerName = f"Hidden Layer {layerIndex}" if layerIndex != len(dimentions) - 1 else "Ouput "
-
-	#create slider windows
-	layer.biasSliderWindow = SliderWindow(layer.biases, layerName + " Biases", layer.setBiases, root, range=(-10, 10))
-	layer.weightSliderWindow = SliderWindow(layer.weights, layerName + " Weights", layer.setWeights, root, range=(-10, 10))
+##loop through layers
+#for layerIndex, layer in enumerate(model.layers):
+#	#create name
+#	layerName = f"Hidden Layer {layerIndex}" if layerIndex != len(dimentions) - 1 else "Ouput "
+#
+#	#create slider windows
+#	layer.biasSliderWindow = SliderWindow(layer.biases, layerName + " Biases", layer.setBiases, root, range=(-10, 10))
+#	layer.weightSliderWindow = SliderWindow(layer.weights, layerName + " Weights", layer.setWeights, root, range=(-10, 10))
 
 #get a dataset
 dataset = randomPointsWithCondition(datasetSize, testInequality, x_range=x_range, y_range=y_range)
@@ -102,7 +103,8 @@ visualizer = ModelVisualizer(model)
 
 while True:
 	#learn!
-	for i in range(learnsPerDisplay):
+	guiUpdateTime = time.time() + 1/fps
+	while guiUpdateTime - time.time() > 0:
 		batch = np.random.choice(dataset, size=batchSize, replace=False)
 		model.learn(batch, learnRate)
 
