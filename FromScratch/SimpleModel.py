@@ -19,6 +19,47 @@ class Model:
 			self.layers.append(Layer(numInputs, numOutputs, self))
 			numInputs = numOutputs
 
+	def learn(self, datapoints, learnRate):
+		h = .000001 #closer to 0, the better
+		initialCost = self.getTotalCost(datapoints, False)
+
+		for layer in self.layers:
+			#loop through each weight
+			for inputIndex in range(layer.numInputs):
+				for outputIndex in range(layer.numOutputs):
+					#increment weight
+					layer.weights[inputIndex, outputIndex] += h
+
+					#get how much the cost changed
+					costChange = self.getTotalCost(datapoints, False) - initialCost 
+
+					#revert so other weights are unaffected
+					layer.weights[inputIndex, outputIndex] -= h
+
+					#give the layer gradient (unapplied so other weights can be changed)
+					layer.weightCostGradients[inputIndex, outputIndex] = costChange / h
+
+			#same thing as weights, but for biases
+			for biasIndex in range(layer.numOutputs):
+				layer.biases[biasIndex] += h
+				costChange = self.getTotalCost(datapoints, False) - initialCost
+				layer.biases[biasIndex] -= h
+				layer.biasCostGradients[biasIndex] = costChange / h
+		
+		#after getting all gradients, apply them
+		for layer in self.layers:
+			layer.applyGradients(learnRate)
+	
+	def calculate(self, inputs):
+		if len(inputs) != self.dimentions[0]:
+			print("Inputs do not match")
+			return
+
+		for layer in self.layers:
+			inputs = layer.getOutputs(inputs)
+
+		return inputs
+
 	def randomizeValues(self):
 		for layer in self.layers:
 			layer.randomizeValues()
@@ -36,20 +77,9 @@ class Model:
 		for layerIndex, layer in enumerate(self.layers):
 			layer.setBiases(biases[layerIndex], True)
 			layer.setWeights(weights[layerIndex], True)
-	
-	def calculate(self, inputs):
-		if len(inputs) != self.dimentions[0]:
-			print("Inputs do not match")
-			return
-
-		for layer in self.layers:
-			inputs = layer.getOutputs(inputs)
-
-		return inputs
 
 	def getCost(self, datapoint):
 		outputs = self.calculate(datapoint.inputs)
-		#print(outputs)
 
 		cost = 0
 		for outputIndex in range(len(outputs)):
@@ -57,7 +87,7 @@ class Model:
 		
 		return cost, listToBool(datapoint.expectedOutputs) == listToBool(outputs)
 	
-	def getTotalCost(self, dataset):
+	def getTotalCost(self, dataset, returnTotalCorrect = True):
 		totalCost = 0
 		totalCorrect = 0
 		for datapoint in dataset:
@@ -66,7 +96,10 @@ class Model:
 			if wasRight:
 				totalCorrect += 1
 		
-		return totalCost / len(dataset), totalCorrect #return average
+		if returnTotalCorrect:
+			return totalCost / len(dataset), totalCorrect
+		return totalCost / len(dataset) #return average
+		
 
 class Layer:
 	def __init__(self, numInputs, numOutputs, model):
@@ -75,6 +108,14 @@ class Layer:
 		self.weights = np.random.uniform(low=-10, high=10, size=(numInputs, numOutputs))
 		self.biases = np.random.uniform(low=-10, high=10, size=(numOutputs))
 		self.model = model
+
+		#initialize gradients
+		self.biasCostGradients = np.zeros_like(self.biases)
+		self.weightCostGradients = np.zeros_like(self.weights)
+
+	def applyGradients(self, learnRate):
+		self.setBiases(self.biases - self.biasCostGradients * learnRate, True)
+		self.setWeights(self.weights - self.weightCostGradients * learnRate, True)
 
 	def randomizeValues(self):
 		newWeights = np.random.uniform(low=-10, high=10, size=(self.numInputs, self.numOutputs))

@@ -13,7 +13,7 @@ def boolToList(bool):
 
 def testInequality(points):
 	x, y = points
-	result = x < .5#** 2 + y ** 2 < radius**2 #circle with radius
+	result = x**2 + y**2 < .6**2 #circle with radius
 	return [1, 0] if result else [0, 1] #convert to list format
 
 def costFunction(calculated, expected):

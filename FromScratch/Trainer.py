@@ -16,6 +16,11 @@ y_range = (0, 1)
 memoryPath = "FromScratch/Memory/"
 memoryFile = memoryPath + "memory.pickle"
 
+learnRate = 1
+datasetSize = 300
+batchSize = 25
+learnsPerDisplay = 100
+
 if not os.path.exists(memoryPath):
     os.makedirs(memoryPath)
     print(f"Folder '{memoryPath}' created.")
@@ -58,7 +63,7 @@ def randomizeValues():
 	model.randomizeValues()
 	
 #create model
-dimentions = [2, 3, 2]
+dimentions = [2, 3, 3, 2]
 model = Model(dimentions, costFunction=costFunction)
 
 #main window
@@ -87,7 +92,7 @@ for layerIndex, layer in enumerate(model.layers):
 	layer.weightSliderWindow = SliderWindow(layer.weights, layerName + " Weights", layer.setWeights, root, range=(-10, 10))
 
 #get a dataset
-dataset = randomPointsWithCondition(100, testInequality, x_range=x_range, y_range=y_range)
+dataset = randomPointsWithCondition(datasetSize, testInequality, x_range=x_range, y_range=y_range)
 totalDatapoints = len(dataset)
 
 #create plot
@@ -96,6 +101,11 @@ plotter = Plotter(model.calculate, dataset, onCloseFunction=stop, x_range=x_rang
 visualizer = ModelVisualizer(model)
 
 while True:
+	#learn!
+	for i in range(learnsPerDisplay):
+		batch = np.random.choice(dataset, size=batchSize, replace=False)
+		model.learn(batch, learnRate)
+
 	#update main gui
 	cost, numCorrect = model.getTotalCost(dataset)
 	costLabel.config(text=f"Cost: {cost}")
