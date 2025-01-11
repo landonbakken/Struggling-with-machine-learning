@@ -2,9 +2,33 @@ import matplotlib.pyplot as plt
 import numpy as np
 from MathThings import *
 
+class IncrementingScatter:
+	def __init__(self, fig, ax):
+		self.fig = fig
+		self.ax = ax
+
+		self.values = []
+		self.plot = None
+
+		self.ax.set_xlabel("Learn cycles")
+		self.ax.set_ylabel("Cost")
+
+		plt.show(block=False)
+
+	def add(self, value):
+		self.values.append(value)
+
+		#remake the plot
+		if self.plot != None:
+			self.plot.remove()
+		self.plot, = self.ax.plot(self.values, linestyle='-', color='b')
+
+		plt.draw()
+
 class Plotter:
-	def __init__(self, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None):
-		self.fig, self.ax = plt.subplots()
+	def __init__(self, fig, ax, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None):
+		self.fig = fig
+		self.ax = ax
 		self.x_range = x_range
 		self.y_range = y_range
 		self.resolution = resolution
@@ -26,7 +50,6 @@ class Plotter:
 		self.updateInequality(inequalityFunc)
 		
 		# Set up the plot
-		self.ax.set_aspect('equal')
 		self.ax.set_xlabel('x')
 		self.ax.set_ylabel('y')
 
@@ -68,7 +91,7 @@ class Plotter:
 			alpha=0.4
 		)
 
-		self.colorbar = plt.colorbar(contour)
+		self.colorbar = self.fig.colorbar(contour)
 		self.colorbar.set_label("True/False (the larger the more confident)")
 		self.inequalityPlot = contour
 
@@ -88,5 +111,5 @@ class Plotter:
 		red_x, red_y = zip(*redPoints) if redPoints else ([], [])
 
 		# Create the scatter plot
-		plt.scatter(green_x, green_y, color='green', label='False')
-		plt.scatter(red_x, red_y, color='red', label='True')
+		self.ax.scatter(green_x, green_y, color='green', label='False')
+		self.ax.scatter(red_x, red_y, color='red', label='True')

@@ -62,9 +62,10 @@ def loadMemory():
 
 def randomizeValues():
 	model.randomizeValues()
+	costPlot.values = []
 	
 #create model
-dimentions = [2, 3, 3, 2]
+dimentions = [2, 3, 5, 3, 2]
 model = Model(dimentions, costFunction=costFunction)
 
 #main window
@@ -74,6 +75,8 @@ costLabel = tk.Label(root, text="Cost: N/A")
 costLabel.pack()
 numCorrectLabel = tk.Label(root, text="Correct: N/A")
 numCorrectLabel.pack()
+learnCyclesLabel = tk.Label(root, text="Learn Cycles per frame: N/A")
+learnCyclesLabel.pack()
 
 #save/load buttons
 button1 = tk.Button(root, text="Save Memory", command=saveMemory)
@@ -96,22 +99,34 @@ button3.pack(pady=10)
 dataset = randomPointsWithCondition(datasetSize, testInequality, x_range=x_range, y_range=y_range)
 totalDatapoints = len(dataset)
 
-#create plot
-plotter = Plotter(model.calculate, dataset, onCloseFunction=stop, x_range=x_range, y_range=y_range)
+#create plots
+fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+
+plotter = Plotter(fig, axs[0], model.calculate, dataset, onCloseFunction=stop, x_range=x_range, y_range=y_range)
+costPlot = IncrementingScatter(fig, axs[1])
+fig.tight_layout() #adjust layout
 
 visualizer = ModelVisualizer(model)
+
 
 while True:
 	#learn!
 	guiUpdateTime = time.time() + 1/fps
+	learnCycles = 0
 	while guiUpdateTime - time.time() > 0:
 		batch = np.random.choice(dataset, size=batchSize, replace=False)
 		model.learn(batch, learnRate)
+		learnCycles += 1
+
 
 	#update main gui
 	cost, numCorrect = model.getTotalCost(dataset)
 	costLabel.config(text=f"Cost: {cost}")
 	numCorrectLabel.config(text=f"Correct: {numCorrect}/{totalDatapoints}")
+	learnCyclesLabel.config(text=f"Learn Cycles per frame: {learnCycles}")
+
+	#add to plot
+	costPlot.add(cost)
 	
 	#update sliders
 	root.update_idletasks()
