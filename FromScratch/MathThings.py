@@ -1,3 +1,5 @@
+import math
+
 # Colors
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -16,9 +18,19 @@ def testInequality(points):
 	result = x**2 + y**2 < .6**2 #circle with radius
 	return [1, 0] if result else [0, 1] #convert to list format
 
+def activationFunction(value): 
+	return 1/(1 + math.exp(-value))
+
+def activationFunctionDerivative(value): 
+	activationValue = activationFunction(value)
+	return activationValue * (1 - activationValue)
+
 def costFunction(calculated, expected):
 	error = calculated - expected
 	return error**2 #emphasises larger errors (and makes positive)
+
+def costFunctionDerivative(calculated, expected):
+	return 2 * (calculated - expected)
 
 # Define the function to graph
 def mathFunction(x):

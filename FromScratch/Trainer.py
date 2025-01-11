@@ -17,10 +17,18 @@ y_range = (0, 1)
 memoryPath = "FromScratch/Memory/"
 memoryFile = memoryPath + "memory.pickle"
 
-learnRate = 1
+#for getting learn rate
+learnRate = 10
+
 datasetSize = 300
-batchSize = 25
+batchSize = 50
 fps = 15
+dimentions = [2, 3, 2]
+
+def costToLearnRate(cost):
+	cost = min(cost, 1) #limit to 1
+	learnRate = clamp(100 * cost**1.4, .1, 15)
+	return learnRate
 
 if not os.path.exists(memoryPath):
     os.makedirs(memoryPath)
@@ -65,8 +73,7 @@ def randomizeValues():
 	costPlot.values = []
 	
 #create model
-dimentions = [2, 3, 5, 3, 2]
-model = Model(dimentions, costFunction=costFunction)
+model = Model(dimentions, costFunction, activationFunction)
 
 #main window
 root = tk.Tk()
@@ -108,7 +115,6 @@ fig.tight_layout() #adjust layout
 
 visualizer = ModelVisualizer(model)
 
-
 while True:
 	#learn!
 	guiUpdateTime = time.time() + 1/fps
@@ -138,5 +144,6 @@ while True:
 	#show updated model
 	visualizer.update()
 
-	#if nothing else is in this loop, add this
-	#plt.pause(.01)
+	#get new learn rate
+	learnRate = costToLearnRate(cost)
+	print(learnRate)

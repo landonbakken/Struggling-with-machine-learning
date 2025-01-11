@@ -9,14 +9,14 @@ class Datapoint:
 		self.pointColor = "green" if self.expectedOutputs[0] == 1 else "red" #really just for true/false (2 output nodes)
 
 class Model:
-	def __init__(self, dimentions, costFunction):
+	def __init__(self, dimentions, costFunction, activationFunction):
 		self.layers = []
 		self.dimentions = dimentions.copy()
 		self.costFunction = costFunction
 
 		numInputs = dimentions.pop(0)
 		for numOutputs in dimentions:
-			self.layers.append(Layer(numInputs, numOutputs, self))
+			self.layers.append(Layer(numInputs, numOutputs, activationFunction, self))
 			numInputs = numOutputs
 
 	def learn(self, datapoints, learnRate):
@@ -102,12 +102,14 @@ class Model:
 		
 
 class Layer:
-	def __init__(self, numInputs, numOutputs, model):
+	def __init__(self, numInputs, numOutputs, activationFunction, model, weightRange = .5, biasRange = .5):
 		self.numInputs = numInputs
 		self.numOutputs = numOutputs
-		self.weights = np.random.uniform(low=-10, high=10, size=(numInputs, numOutputs))
-		self.biases = np.random.uniform(low=-10, high=10, size=(numOutputs))
+		self.activationFunction = activationFunction
 		self.model = model
+
+		self.weights = np.random.uniform(low=-weightRange, high=weightRange, size=(numInputs, numOutputs))
+		self.biases = np.random.uniform(low=-biasRange, high=biasRange, size=(numOutputs))
 
 		self.biasSliderWindow = None
 		self.weightSliderWindow = None
@@ -140,9 +142,6 @@ class Layer:
 			weightedInputs.append(self.activationFunction(weightedInput))
 		
 		return weightedInputs
-	
-	def activationFunction(self, value): 
-		return 1/(1+math.exp(-value))
 	
 	def setBiases(self, newBiases, setSliders = False):
 		self.biases = newBiases
