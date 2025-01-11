@@ -1,6 +1,7 @@
 import random
 import tkinter as tk
 import pickle
+import os
 
 from SimpleModel import *
 from Plotter import *
@@ -12,7 +13,12 @@ radius = 60
 x_range = (0, 1)
 y_range = (0, 1)
 
-memoryFile = "FromScratch/Memory/memory.pickle"
+memoryPath = "FromScratch/Memory/"
+memoryFile = memoryPath + "memory.pickle"
+
+if not os.path.exists(memoryPath):
+    os.makedirs(memoryPath)
+    print(f"Folder '{memoryPath}' created.")
 
 def randomPointsWithCondition(num_points, condition, x_range=(-100, 100), y_range=(-100, 100)):
 	dataPoints = []
