@@ -13,17 +13,22 @@ def listToBool(list):
 def boolToList(bool):
 	return [1, 0] if bool else [0, 1]
 
+
 def testInequality(points):
 	x, y = points
-	result = x**2 + y**2 < .6**2 #circle with radius
+	result = math.cos(10*x)/10 + .5 - y > 0 #sin wave
+	#result = x**2 + y**2 < .6**2 #circle with radius
 	return [1, 0] if result else [0, 1] #convert to list format
 
-def activationFunction(value): 
+def sigmoidFunction(value): 
 	return 1/(1 + math.exp(-value))
 
-def activationFunctionDerivative(value): 
-	activationValue = activationFunction(value)
-	return activationValue * (1 - activationValue)
+def reluFunction(value): 
+	return max(0, value)
+
+#def activationFunctionDerivative(value): 
+#	activationValue = activationFunction(value)
+#	return activationValue * (1 - activationValue)
 
 def costFunction(calculated, expected):
 	error = calculated - expected
@@ -59,4 +64,23 @@ def getGradient(curve, point, step):
 	z_yStepped = curve((x, yStepped))
 
 	return ((z_xStepped - z_initial)/step, (z_yStepped - z_initial)/step)
+
+# right now just red -> black -> green
+# -1 to 1
+def interpolateColors(value):
+    if value <= 0:
+        r = int(255 * -value)
+        g = 0
+        b = 0
+    else:
+        r = 0
+        g = int(255 * value)
+        b = 0
+    
+    return (r, g, b)
+
+# gets the max range from two tuples
+# (-2, .1), (-.3, 5) -> (-2, 5)
+def maxRangeFromTuples(tuple1, tuple2):
+	return tuple((min(tuple1[0], tuple2[0]), max(tuple1[1], tuple2[1])))
 

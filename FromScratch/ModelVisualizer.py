@@ -5,15 +5,15 @@ import pygame
 pygame.init()
 
 class ModelVisualizer:
-	def __init__(self, model, windowWidth = 800, windowHeight = 600, nodeRadius = 25, connectionWidth = 5, colorRange = (0, 255), outlineColor = (255, 255, 255), backgroundColor=(0, 0, 0)):
+	def __init__(self, model, windowWidth = 800, windowHeight = 600, nodeRadius = 25, connectionWidth = 5, outlineColor = (100, 100, 100), backgroundColor=(0, 0, 0), minRange = (-1, 1)):
 		self.model = model
 		self.WIDTH = windowWidth
 		self.HEIGHT = windowHeight
 		self.nodeRadius = nodeRadius
 		self.connectionWidth = connectionWidth
-		self.colorRange = colorRange
 		self.outlineColor = outlineColor
 		self.backgroundColor = backgroundColor
+		self.minRange = minRange
 
 		# Initialize Pygame
 		self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
@@ -32,6 +32,7 @@ class ModelVisualizer:
 			weights = self.model.layers[layerIndex].weights
 			maxLayerWeight = max(np.max(weights), abs(np.min(weights)))
 			layerWeightRange = (-maxLayerWeight, maxLayerWeight)
+			layerWeightRange = maxRangeFromTuples(layerWeightRange, self.minRange)
 
 			for nodeIndex_1 in range(layerOutputs_1):
 				x_1 = self.WIDTH * layerIndex/columns + self.WIDTH/columns/2
@@ -43,9 +44,10 @@ class ModelVisualizer:
 					y_2 = self.HEIGHT * nodeIndex_2/rows + self.HEIGHT/rows/2 + (rows - layerOutputs_2)*self.HEIGHT/rows/2
 
 					weight = weights[nodeIndex_1, nodeIndex_2]
-					color = mapToRange(weight, layerWeightRange, self.colorRange)
+					weight = mapToRange(weight, layerWeightRange, (-1, 1))
+					color = interpolateColors(weight)
 					pygame.draw.line(self.screen, self.outlineColor, (x_1, y_1), (x_2, y_2), self.connectionWidth + 2)
-					pygame.draw.line(self.screen, (color, color, color), (x_1, y_1), (x_2, y_2), self.connectionWidth)
+					pygame.draw.line(self.screen, color, (x_1, y_1), (x_2, y_2), self.connectionWidth)
 
 	def drawLayerNodes(self):
 		columns = len(self.model.dimentions)
@@ -55,15 +57,16 @@ class ModelVisualizer:
 			biases = self.model.layers[layerIndex - 1].biases
 			maxLayerBias = max(max(biases), abs(min(biases)))
 			layerBiasRange = (-maxLayerBias, maxLayerBias)
+			layerBiasRange = maxRangeFromTuples(layerBiasRange, self.minRange)
 
 			for nodeIndex in range(layerOutputs):
 				x = self.WIDTH * layerIndex/columns + self.WIDTH/columns/2
 				y = self.HEIGHT * nodeIndex/rows + self.HEIGHT/rows/2 + (rows - layerOutputs)*self.HEIGHT/rows/2
 				if layerIndex == 0:
-					color = (50, 200, 50)
+					color = (50, 50, 200)
 				else:
-					color = mapToRange(biases[nodeIndex], layerBiasRange, self.colorRange)
-					color = (color, color, color)
+					bias = mapToRange(biases[nodeIndex], layerBiasRange, (-1, 1))
+					color = interpolateColors(bias)
 				pygame.draw.circle(self.screen, self.outlineColor, (x, y), self.nodeRadius + 1)
 				pygame.draw.circle(self.screen, color, (x, y), self.nodeRadius)
 

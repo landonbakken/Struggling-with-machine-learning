@@ -20,14 +20,14 @@ memoryFile = memoryPath + "memory.pickle"
 #for getting learn rate
 learnRate = 10
 
-datasetSize = 300
-batchSize = 50
+datasetSize = 700 * 40
+batchSize = int(datasetSize/700) #each batch is one epoch
 fps = 15
-dimentions = [2, 3, 2]
+dimentions = [2, 3, 3, 2]
 
 def costToLearnRate(cost):
 	cost = min(cost, 1) #limit to 1
-	learnRate = clamp(100 * cost**1.4, .1, 15)
+	learnRate = clamp(5 * cost**1.4, .01, 5)
 	return learnRate
 
 if not os.path.exists(memoryPath):
@@ -73,15 +73,15 @@ def randomizeValues():
 	costPlot.values = []
 	
 #create model
-model = Model(dimentions, costFunction, activationFunction)
+model = Model(dimentions, costFunction, hiddenActivationFunction=reluFunction, outputActivationFunction=sigmoidFunction)
 
 #main window
 root = tk.Tk()
 root.title("Controls and info")
 costLabel = tk.Label(root, text="Cost: N/A")
 costLabel.pack()
-numCorrectLabel = tk.Label(root, text="Correct: N/A")
-numCorrectLabel.pack()
+learnRateLabel = tk.Label(root, text="Learn Rate: N/A")
+learnRateLabel.pack()
 learnCyclesLabel = tk.Label(root, text="Learn Cycles per frame: N/A")
 learnCyclesLabel.pack()
 
@@ -119,16 +119,15 @@ while True:
 	#learn!
 	guiUpdateTime = time.time() + 1/fps
 	learnCycles = 0
+	batch = np.random.choice(dataset, size=batchSize, replace=False)
 	while guiUpdateTime - time.time() > 0:
-		batch = np.random.choice(dataset, size=batchSize, replace=False)
 		model.learn(batch, learnRate)
 		learnCycles += 1
 
-
 	#update main gui
-	cost, numCorrect = model.getTotalCost(dataset)
-	costLabel.config(text=f"Cost: {cost}")
-	numCorrectLabel.config(text=f"Correct: {numCorrect}/{totalDatapoints}")
+	cost = model.getTotalCost(batch, False)
+	costLabel.config(text=f"Cost: {cost:.5g}")
+	learnRateLabel.config(text=f"Learn Rate: {learnRate:.5g}")
 	learnCyclesLabel.config(text=f"Learn Cycles per frame: {learnCycles}")
 
 	#add to plot
@@ -146,4 +145,3 @@ while True:
 
 	#get new learn rate
 	learnRate = costToLearnRate(cost)
-	print(learnRate)

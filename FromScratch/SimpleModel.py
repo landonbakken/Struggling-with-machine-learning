@@ -1,6 +1,5 @@
 from MathThings import *
 import numpy as np
-import math
 
 class Datapoint:
 	def __init__(self, inputs, condition):
@@ -9,13 +8,19 @@ class Datapoint:
 		self.pointColor = "green" if self.expectedOutputs[0] == 1 else "red" #really just for true/false (2 output nodes)
 
 class Model:
-	def __init__(self, dimentions, costFunction, activationFunction):
+	def __init__(self, dimentions, costFunction, hiddenActivationFunction, outputActivationFunction):
 		self.layers = []
 		self.dimentions = dimentions.copy()
 		self.costFunction = costFunction
 
 		numInputs = dimentions.pop(0)
-		for numOutputs in dimentions:
+		for numOutputsIndex, numOutputs in enumerate(dimentions):
+			if numOutputsIndex + 1 == len(dimentions):
+				activationFunction = outputActivationFunction
+				print("output")
+			else:
+				activationFunction = hiddenActivationFunction
+				print("hidden")
 			self.layers.append(Layer(numInputs, numOutputs, activationFunction, self))
 			numInputs = numOutputs
 
