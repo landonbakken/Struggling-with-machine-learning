@@ -9,7 +9,7 @@ class Datapoint:
 
 class Model:
 	def __init__(self, dimentions, costFunction, hiddenActivationFunction, outputActivationFunction):
-		self.layers = []
+		self.layers = np.empty(len(dimentions) - 1, dtype=Layer) #-1 becasue the input layer isnt really a layer
 		self.dimentions = dimentions.copy()
 		self.costFunction = costFunction
 
@@ -19,7 +19,7 @@ class Model:
 				activationFunction = outputActivationFunction
 			else:
 				activationFunction = hiddenActivationFunction
-			self.layers.append(Layer(numInputs, numOutputs, activationFunction, self))
+			self.layers[numOutputsIndex] = Layer(numInputs, numOutputs, activationFunction, self)
 			numInputs = numOutputs
 
 	def learn(self, datapoints, weightLearnRate, biasLearnRate):
@@ -142,23 +142,23 @@ class Layer:
 			print("Incorrect number of inputs")
 			return None
 
-		weightedInputs = []
-		for output in range(self.numOutputs):
+		weightedInputs = np.empty(self.numOutputs, dtype=float)
+		for outputIndex, output in enumerate(range(self.numOutputs)):
 			weightedInput = self.biases[output]
 			for input in range(len(inputs)):
 				weightedInput += inputs[input] * self.weights[input][output]
-			weightedInputs.append(self.activationFunction(weightedInput))
+			weightedInputs[outputIndex] = self.activationFunction(weightedInput)
 		
 		return weightedInputs
 	
 	def setBiases(self, newBiases, setSliders = False):
-		self.biases = newBiases
+		self.biases = np.array(newBiases, dtype=float)
 
 		if setSliders and self.biasSliderWindow is not None:
 			self.biasSliderWindow.setValues(newBiases)
 
 	def setWeights(self, newWeights, setSliders = False):
-		self.weights = newWeights
+		self.weights = np.array(newWeights, dtype=float)
 
 		if setSliders and self.biasSliderWindow is not None:
 			self.weightSliderWindow.setValues(newWeights)
