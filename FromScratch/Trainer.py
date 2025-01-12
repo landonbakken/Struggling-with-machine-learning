@@ -19,6 +19,7 @@ memoryFile = memoryPath + "memory.pickle"
 
 #for getting learn rate
 learnRate = 10
+learnRateUpdateRate = .3 #percent
 
 datasetSize = 700 * 40
 batchSize = int(datasetSize/700) #each batch is one epoch
@@ -107,10 +108,11 @@ dataset = randomPointsWithCondition(datasetSize, testInequality, x_range=x_range
 totalDatapoints = len(dataset)
 
 #create plots
-fig, axs = plt.subplots(1, 2, figsize=(12, 5))
+fig, axs = plt.subplots(2, 2, figsize=(15, 11))
 
-plotter = Plotter(fig, axs[0], model.calculate, dataset, onCloseFunction=stop, x_range=x_range, y_range=y_range)
-costPlot = IncrementingScatter(fig, axs[1])
+plotter = Plotter(fig, axs[1][0], model.calculate, dataset, "False------------------->True", onCloseFunction=stop, x_range=x_range, y_range=y_range)
+costPlot = IncrementingScatter(fig, axs[1][1], "Learn Cycles", "Cost")
+learnRatePlot = IncrementingScatter(fig, axs[0][1], "Learn Cycles", "Learn Rate")
 fig.tight_layout() #adjust layout
 
 visualizer = ModelVisualizer(model)
@@ -130,8 +132,9 @@ while True:
 	learnRateLabel.config(text=f"Learn Rate: {learnRate:.5g}")
 	learnCyclesLabel.config(text=f"Learn Cycles per frame: {learnCycles}")
 
-	#add to plot
+	#add to plots
 	costPlot.add(cost)
+	learnRatePlot.add(learnRate)
 	
 	#update sliders
 	root.update_idletasks()
@@ -144,4 +147,5 @@ while True:
 	visualizer.update()
 
 	#get new learn rate
-	learnRate = costToLearnRate(cost)
+	newLearnRate = costToLearnRate(cost)
+	learnRate = combinedRatio(newLearnRate, learnRate, learnRateUpdateRate)

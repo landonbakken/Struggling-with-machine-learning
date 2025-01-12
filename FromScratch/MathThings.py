@@ -84,3 +84,8 @@ def interpolateColors(value):
 def maxRangeFromTuples(tuple1, tuple2):
 	return tuple((min(tuple1[0], tuple2[0]), max(tuple1[1], tuple2[1])))
 
+# takes two numbers, and a percent of what the first number should be
+# good for rolling averages
+def combinedRatio(value1, value2, percent):
+	return value1 * percent + value2 * (1 - percent)
+

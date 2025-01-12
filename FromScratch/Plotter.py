@@ -3,15 +3,15 @@ import numpy as np
 from MathThings import *
 
 class IncrementingScatter:
-	def __init__(self, fig, ax):
+	def __init__(self, fig, ax, xLabel, yLabel):
 		self.fig = fig
 		self.ax = ax
 
 		self.values = []
 		self.plot = None
 
-		self.ax.set_xlabel("Learn cycles")
-		self.ax.set_ylabel("Cost")
+		self.ax.set_xlabel(xLabel)
+		self.ax.set_ylabel(yLabel)
 
 		plt.show(block=False)
 
@@ -26,12 +26,13 @@ class IncrementingScatter:
 		plt.draw()
 
 class Plotter:
-	def __init__(self, fig, ax, inequalityFunc, dataset, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None):
+	def __init__(self, fig, ax, inequalityFunc, dataset, colorbarLabel, x_range=(-100, 100), y_range=(-100, 100), resolution=100, onCloseFunction = None):
 		self.fig = fig
 		self.ax = ax
 		self.x_range = x_range
 		self.y_range = y_range
 		self.resolution = resolution
+		self.colorbarLabel = colorbarLabel
 		
 		if onCloseFunction != None:
 			self.fig.canvas.mpl_connect('close_event', onCloseFunction)
@@ -92,7 +93,7 @@ class Plotter:
 		)
 
 		self.colorbar = self.fig.colorbar(contour)
-		self.colorbar.set_label("True/False (the larger the more confident)")
+		self.colorbar.set_label(self.colorbarLabel)
 		self.inequalityPlot = contour
 
 	def plotScatter(self, dataset):
