@@ -17,10 +17,8 @@ class Model:
 		for numOutputsIndex, numOutputs in enumerate(dimentions):
 			if numOutputsIndex + 1 == len(dimentions):
 				activationFunction = outputActivationFunction
-				print("output")
 			else:
 				activationFunction = hiddenActivationFunction
-				print("hidden")
 			self.layers.append(Layer(numInputs, numOutputs, activationFunction, self))
 			numInputs = numOutputs
 
@@ -54,6 +52,8 @@ class Model:
 		#after getting all gradients, apply them
 		for layer in self.layers:
 			layer.applyGradients(learnRate)
+
+		return self.getTotalCost(datapoints, False)
 	
 	def calculate(self, inputs):
 		if len(inputs) != self.dimentions[0]:
@@ -107,7 +107,7 @@ class Model:
 		
 
 class Layer:
-	def __init__(self, numInputs, numOutputs, activationFunction, model, weightRange = .5, biasRange = .5):
+	def __init__(self, numInputs, numOutputs, activationFunction, model, weightRange = .1, biasRange = .1):
 		self.numInputs = numInputs
 		self.numOutputs = numOutputs
 		self.activationFunction = activationFunction

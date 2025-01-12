@@ -19,11 +19,11 @@ memoryFile = memoryPath + "memory.pickle"
 
 #for getting learn rate
 learnRate = 10
-learnRateUpdateRate = .3 #percent
+learnRateUpdateRate = .1 #percent
 
 datasetSize = 700 * 40
 batchSize = int(datasetSize/700) #each batch is one epoch
-fps = 15
+fps = .5 #attempted
 dimentions = [2, 3, 3, 2]
 
 def costToLearnRate(cost):
@@ -36,12 +36,12 @@ if not os.path.exists(memoryPath):
     print(f"Folder '{memoryPath}' created.")
 
 def randomPointsWithCondition(num_points, condition, x_range=(-100, 100), y_range=(-100, 100)):
-	dataPoints = []
-	for _ in range(num_points):
+	dataPoints = np.empty(num_points, dtype=Datapoint)
+	for i in range(num_points):
 		x = random.uniform(*x_range)
 		y = random.uniform(*y_range)
 		newDataPoint = Datapoint([x, y], condition)
-		dataPoints.append(newDataPoint)
+		dataPoints[i] = newDataPoint
 	return dataPoints
 
 def stop(event):
@@ -121,13 +121,16 @@ while True:
 	#learn!
 	guiUpdateTime = time.time() + 1/fps
 	learnCycles = 0
-	batch = np.random.choice(dataset, size=batchSize, replace=False)
 	while guiUpdateTime - time.time() > 0:
-		model.learn(batch, learnRate)
+		batch = np.random.choice(dataset, size=batchSize, replace=False)
+		cost = model.learn(batch, learnRate)
 		learnCycles += 1
+		
+		#get new learn rate
+		newLearnRate = costToLearnRate(cost)
+		learnRate = combinedRatio(newLearnRate, learnRate, learnRateUpdateRate)
 
 	#update main gui
-	cost = model.getTotalCost(batch, False)
 	costLabel.config(text=f"Cost: {cost:.5g}")
 	learnRateLabel.config(text=f"Learn Rate: {learnRate:.5g}")
 	learnCyclesLabel.config(text=f"Learn Cycles per frame: {learnCycles}")
@@ -145,7 +148,3 @@ while True:
 
 	#show updated model
 	visualizer.update()
-
-	#get new learn rate
-	newLearnRate = costToLearnRate(cost)
-	learnRate = combinedRatio(newLearnRate, learnRate, learnRateUpdateRate)
