@@ -13,12 +13,18 @@ def listToBool(list):
 def boolToList(bool):
 	return [1, 0] if bool else [0, 1]
 
+def circleInequality(point, radius, offset):
+	x, y = point
+	x_off, y_off = offset
+	return (x - x_off)**2 + (y - y_off)**2 < radius
 
-def testInequality(points):
-	x, y = points
+def testInequality(point):
+	x, y = point
 	#result = math.cos(10*x)/10 + .5 - y > 0 #sin wave
-	result = x**2 + y**2 < .8**2 #circle
-	#result = (x-1)**2 + (y-1)**2 < 1**2 #circle with radius in the corner
+	#result = x**2 + y**2 < .6**2 #circle
+	result = circleInequality(point, .9, (1, 1))#circle with radius in the corner
+	result = result or circleInequality(point, .9, (-1, -1))#circle with radius in the corner
+
 	#result = x < -.5 or x > .5
 	return [1, 0] if result else [0, 1] #convert to list format
 

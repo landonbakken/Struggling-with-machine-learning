@@ -25,11 +25,11 @@ biasLearnRateRatio = .4 #this is so that the biases don't overshadow the weights
 datasetSize = 700 * 40
 batchSize = int(datasetSize/700) #each batch is one epoch
 fps = 1 #attempted
-dimentions = [2, 3, 2]
+dimentions = [2, 8, 8, 2]
 
 def costToLearnRate(cost):
 	cost = min(cost, 1) #limit to 1
-	learnRate = clamp(25 * cost**1.6, .03, 10)
+	learnRate = clamp(100 * cost**1.5, .03, 15)
 	return learnRate
 
 if not os.path.exists(memoryPath):
@@ -75,7 +75,7 @@ def randomizeValues():
 	costPlot.values = []
 	
 #create model
-model = Model(dimentions, costFunction, leakyReluFunction, sigmoidFunction_fromTanH)
+model = Model(dimentions, costFunction, leakyReluFunction, sigmoidFunction)
 
 #main window
 root = tk.Tk()
