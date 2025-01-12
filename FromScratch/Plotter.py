@@ -13,7 +13,8 @@ class IncrementingScatter:
 
 		self.ax.set_xlabel(xLabel)
 		self.ax.set_ylabel(yLabel)
-		self.ax.set_ylim(bottom=yRange[0], top=yRange[1])
+		self.ax.set_yscale("log")
+		#self.ax.set_ylim(bottom=log(yRange[0], top=yRange[1])
 
 		plt.show(block=False)
 
@@ -23,6 +24,8 @@ class IncrementingScatter:
 		#remake the plot
 		if self.plot != None:
 			self.plot.remove()
+
+		self.ax.set_xlim(0, len(self.values))
 		self.plot, = self.ax.plot(self.values, linestyle='-', color='b')
 
 		plt.draw()
@@ -37,7 +40,7 @@ class Plotter:
 		self.colorbarLabel = colorbarLabel
 		
 		self.ax.set_aspect('equal')
-		
+
 		if onCloseFunction != None:
 			self.fig.canvas.mpl_connect('close_event', onCloseFunction)
 		

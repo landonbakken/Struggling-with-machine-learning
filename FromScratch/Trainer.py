@@ -10,31 +10,38 @@ from MathThings import *
 from ModelVisualizer import *
 from VariableSliders import *
 
-radius = 60
+#plot/data ranges
 x_range = (-1, 1)
 y_range = (-1, 1)
 
+#memory paths
 memoryPath = "FromScratch/Memory/"
 memoryFile = memoryPath + "memory.pickle"
 
-#for getting learn rate
-learnRate = 0 #just an initial, this is overwritten
-learnRateUpdateRate = .1 #percent
-biasLearnRateRatio = .4 #this is so that the biases don't overshadow the weights
-
-datasetSize = 700 * 40
-batchSize = int(datasetSize/700) #each batch is one epoch
-fps = 1 #attempted
-dimentions = [2, 8, 8, 2]
-
-def costToLearnRate(cost):
-	cost = min(cost, 1) #limit to 1
-	learnRate = clamp(100 * cost**1.5, .03, 15)
-	return learnRate
-
+#create the memory folder if it doesnt exist
 if not os.path.exists(memoryPath):
     os.makedirs(memoryPath)
     print(f"Folder '{memoryPath}' created.")
+
+#model settings
+learnRateUpdateRate = .1 #percent, how fast the update rate changes
+biasLearnRateRatio = .4 #this is so that the biases don't overshadow the weights
+learnRateRange = (.03, 15)
+dimentions = [2, 8, 8, 2] #of the model
+
+#data settings
+datasetSize = 700 * 40
+batchSize = int(datasetSize/700) #each batch is one epoch (kind of useless right now, but helpfull in the future)
+
+#other settings
+fps = 1 #attempted
+
+#relates cost to learn rate
+#the idea is that as the cost goes down, it slows down the learning, letting the model really zero in on the solution
+def costToLearnRate(cost):
+	learnRate = 100 * cost**1.5
+	learnRate = clamp(learnRate, learnRateRange[0], learnRateRange[1])
+	return learnRate
 
 def randomPointsWithCondition(num_points, condition, x_range, y_range):
 	dataPoints = np.empty(num_points, dtype=Datapoint)
@@ -59,6 +66,8 @@ def saveMemory():
 	print("Saved memory to files")
 
 def loadMemory():
+	global learnRate
+
 	with open(memoryFile, 'rb') as f:
 		variables = pickle.load(f)
 	dimentions, weights, biases = variables
@@ -70,9 +79,16 @@ def loadMemory():
 	else:
 		print("Dimentions don't match ):")
 
+	learnRate = 0
+	costPlot.values = []
+	learnRatePlot.values = []
+
+	
+
 def randomizeValues():
 	model.randomizeValues()
 	costPlot.values = []
+	learnRatePlot.values = []
 	
 #create model
 model = Model(dimentions, costFunction, leakyReluFunction, sigmoidFunction)
@@ -81,11 +97,11 @@ model = Model(dimentions, costFunction, leakyReluFunction, sigmoidFunction)
 root = tk.Tk()
 root.title("Controls and info")
 costLabel = tk.Label(root, text="Cost: N/A")
-costLabel.pack()
+costLabel.pack(pady=10)
 learnRateLabel = tk.Label(root, text="Learn Rate: N/A")
-learnRateLabel.pack()
+learnRateLabel.pack(pady=10)
 learnCyclesLabel = tk.Label(root, text="Learn Cycles per frame: N/A")
-learnCyclesLabel.pack()
+learnCyclesLabel.pack(pady=10)
 
 #save/load buttons
 button1 = tk.Button(root, text="Save Memory", command=saveMemory)
@@ -95,7 +111,7 @@ button2.pack(pady=10)
 button3 = tk.Button(root, text="Randomize", command=randomizeValues)
 button3.pack(pady=10)
 
-##loop through layers
+#slider windows
 #for layerIndex, layer in enumerate(model.layers):
 #	#create name
 #	layerName = f"Hidden Layer {layerIndex}" if layerIndex != len(dimentions) - 1 else "Ouput "
@@ -104,20 +120,25 @@ button3.pack(pady=10)
 #	layer.biasSliderWindow = SliderWindow(layer.biases, layerName + " Biases", layer.setBiases, root, range=(-10, 10))
 #	layer.weightSliderWindow = SliderWindow(layer.weights, layerName + " Weights", layer.setWeights, root, range=(-10, 10))
 
-#get a dataset
+#make the dataset
 dataset = randomPointsWithCondition(datasetSize, testInequality, x_range, y_range)
 totalDatapoints = len(dataset)
 
-#create plots
+#matplotlib window
 fig, axs = plt.subplots(2, 2, figsize=(14, 11))
 
+#create plots
 plotter = Plotter(fig, axs[1][0], model.calculate, dataset, "False------------------->True", onCloseFunction=stop, x_range=x_range, y_range=y_range)
 costPlot = IncrementingScatter(fig, axs[1][1], "Learn Cycles", "Cost", (0, 1))
-learnRatePlot = IncrementingScatter(fig, axs[0][1], "Learn Cycles", "Learn Rate", (0, 1))
-fig.tight_layout() #adjust layout
+learnRatePlot = IncrementingScatter(fig, axs[0][1], "Learn Cycles", "Learn Rate", (0, learnRateRange[1]))
 
-visualizer = ModelVisualizer(model)
+#adjust layout
+fig.tight_layout()
 
+#create visualizer
+visualizer = ModelVisualizer(model, ax=axs[0, 0])
+
+learnRate = learnRateRange[1]
 while True:
 	#learn!
 	guiUpdateTime = time.time() + 1/fps

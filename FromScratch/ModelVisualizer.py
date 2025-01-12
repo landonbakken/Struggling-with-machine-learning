@@ -5,7 +5,7 @@ import pygame
 pygame.init()
 
 class ModelVisualizer:
-	def __init__(self, model, windowWidth = 800, windowHeight = 600, nodeRadius = 25, connectionWidth = 5, outlineColor = (100, 100, 100), backgroundColor=(0, 0, 0), minRange = (-1, 1)):
+	def __init__(self, model, windowWidth = 800, windowHeight = 600, nodeRadius = 25, connectionWidth = 5, outlineColor = (100, 100, 100), backgroundColor=(0, 0, 0), minRange = (-1, 1), ax=None):
 		self.model = model
 		self.WIDTH = windowWidth
 		self.HEIGHT = windowHeight
@@ -14,10 +14,16 @@ class ModelVisualizer:
 		self.outlineColor = outlineColor
 		self.backgroundColor = backgroundColor
 		self.minRange = minRange
+		self.ax = ax
 
-		# Initialize Pygame
-		self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.RESIZABLE)
+		#make flags
+		flag = pygame.RESIZABLE if self.ax == None else pygame.HIDDEN
+
+		#create screen
+		self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT), flags=flag)
 		pygame.display.set_caption("Model Visualizer")
+
+		self.update()
 
 	def drawConnections(self):
 		columns = len(self.model.dimentions)
@@ -87,3 +93,13 @@ class ModelVisualizer:
 		
 		# Update the display
 		pygame.display.flip()
+
+		#put into matplotlib (if in settings)
+		if self.ax != None:
+			pygame_array = pygame.surfarray.array3d(self.screen)
+			pygame_array = np.transpose(pygame_array, (1, 0, 2))
+			self.ax.clear()
+			self.ax.imshow(pygame_array)
+			self.ax.axis('off')
+
+		
