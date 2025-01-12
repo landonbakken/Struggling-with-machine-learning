@@ -11,31 +11,32 @@ from ModelVisualizer import *
 from VariableSliders import *
 
 radius = 60
-x_range = (0, 1)
-y_range = (0, 1)
+x_range = (-1, 1)
+y_range = (-1, 1)
 
 memoryPath = "FromScratch/Memory/"
 memoryFile = memoryPath + "memory.pickle"
 
 #for getting learn rate
-learnRate = 10
+learnRate = 0 #just an initial, this is overwritten
 learnRateUpdateRate = .1 #percent
+biasLearnRateRatio = .4 #this is so that the biases don't overshadow the weights
 
 datasetSize = 700 * 40
 batchSize = int(datasetSize/700) #each batch is one epoch
-fps = .5 #attempted
-dimentions = [2, 3, 3, 2]
+fps = 1 #attempted
+dimentions = [2, 3, 2]
 
 def costToLearnRate(cost):
 	cost = min(cost, 1) #limit to 1
-	learnRate = clamp(5 * cost**1.4, .01, 5)
+	learnRate = clamp(25 * cost**1.6, .03, 10)
 	return learnRate
 
 if not os.path.exists(memoryPath):
     os.makedirs(memoryPath)
     print(f"Folder '{memoryPath}' created.")
 
-def randomPointsWithCondition(num_points, condition, x_range=(-100, 100), y_range=(-100, 100)):
+def randomPointsWithCondition(num_points, condition, x_range, y_range):
 	dataPoints = np.empty(num_points, dtype=Datapoint)
 	for i in range(num_points):
 		x = random.uniform(*x_range)
@@ -74,7 +75,7 @@ def randomizeValues():
 	costPlot.values = []
 	
 #create model
-model = Model(dimentions, costFunction, hiddenActivationFunction=reluFunction, outputActivationFunction=sigmoidFunction)
+model = Model(dimentions, costFunction, leakyReluFunction, sigmoidFunction_fromTanH)
 
 #main window
 root = tk.Tk()
@@ -104,15 +105,15 @@ button3.pack(pady=10)
 #	layer.weightSliderWindow = SliderWindow(layer.weights, layerName + " Weights", layer.setWeights, root, range=(-10, 10))
 
 #get a dataset
-dataset = randomPointsWithCondition(datasetSize, testInequality, x_range=x_range, y_range=y_range)
+dataset = randomPointsWithCondition(datasetSize, testInequality, x_range, y_range)
 totalDatapoints = len(dataset)
 
 #create plots
-fig, axs = plt.subplots(2, 2, figsize=(15, 11))
+fig, axs = plt.subplots(2, 2, figsize=(14, 11))
 
 plotter = Plotter(fig, axs[1][0], model.calculate, dataset, "False------------------->True", onCloseFunction=stop, x_range=x_range, y_range=y_range)
-costPlot = IncrementingScatter(fig, axs[1][1], "Learn Cycles", "Cost")
-learnRatePlot = IncrementingScatter(fig, axs[0][1], "Learn Cycles", "Learn Rate")
+costPlot = IncrementingScatter(fig, axs[1][1], "Learn Cycles", "Cost", (0, 1))
+learnRatePlot = IncrementingScatter(fig, axs[0][1], "Learn Cycles", "Learn Rate", (0, 1))
 fig.tight_layout() #adjust layout
 
 visualizer = ModelVisualizer(model)
@@ -122,13 +123,17 @@ while True:
 	guiUpdateTime = time.time() + 1/fps
 	learnCycles = 0
 	while guiUpdateTime - time.time() > 0:
+		#get a new random datapoint batch
 		batch = np.random.choice(dataset, size=batchSize, replace=False)
-		cost = model.learn(batch, learnRate)
-		learnCycles += 1
-		
+
+		#learn, and get the cost
+		cost = model.learn(batch, learnRate, learnRate * biasLearnRateRatio)
+
 		#get new learn rate
 		newLearnRate = costToLearnRate(cost)
-		learnRate = combinedRatio(newLearnRate, learnRate, learnRateUpdateRate)
+		learnRate = rollingMeanRatio(newLearnRate, learnRate, learnRateUpdateRate)
+
+		learnCycles += 1
 
 	#update main gui
 	costLabel.config(text=f"Cost: {cost:.5g}")

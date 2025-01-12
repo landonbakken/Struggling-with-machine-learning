@@ -3,15 +3,17 @@ import numpy as np
 from MathThings import *
 
 class IncrementingScatter:
-	def __init__(self, fig, ax, xLabel, yLabel):
+	def __init__(self, fig, ax, xLabel, yLabel, yRange):
 		self.fig = fig
 		self.ax = ax
+		self.yRange = yRange
 
 		self.values = []
 		self.plot = None
 
 		self.ax.set_xlabel(xLabel)
 		self.ax.set_ylabel(yLabel)
+		self.ax.set_ylim(bottom=yRange[0], top=yRange[1])
 
 		plt.show(block=False)
 
@@ -33,6 +35,8 @@ class Plotter:
 		self.y_range = y_range
 		self.resolution = resolution
 		self.colorbarLabel = colorbarLabel
+		
+		self.ax.set_aspect('equal')
 		
 		if onCloseFunction != None:
 			self.fig.canvas.mpl_connect('close_event', onCloseFunction)

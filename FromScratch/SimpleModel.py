@@ -22,7 +22,7 @@ class Model:
 			self.layers.append(Layer(numInputs, numOutputs, activationFunction, self))
 			numInputs = numOutputs
 
-	def learn(self, datapoints, learnRate):
+	def learn(self, datapoints, weightLearnRate, biasLearnRate):
 		h = .000001 #closer to 0, the better
 		initialCost = self.getTotalCost(datapoints, False)
 
@@ -51,7 +51,7 @@ class Model:
 		
 		#after getting all gradients, apply them
 		for layer in self.layers:
-			layer.applyGradients(learnRate)
+			layer.applyGradients(weightLearnRate, biasLearnRate)
 
 		return self.getTotalCost(datapoints, False)
 	
@@ -107,11 +107,14 @@ class Model:
 		
 
 class Layer:
-	def __init__(self, numInputs, numOutputs, activationFunction, model, weightRange = .1, biasRange = .1):
+	def __init__(self, numInputs, numOutputs, activationFunction, model, weightRange = 1, biasRange = 1):
 		self.numInputs = numInputs
 		self.numOutputs = numOutputs
 		self.activationFunction = activationFunction
 		self.model = model
+
+		self.weightRange = weightRange
+		self.biasRange = biasRange
 
 		self.weights = np.random.uniform(low=-weightRange, high=weightRange, size=(numInputs, numOutputs))
 		self.biases = np.random.uniform(low=-biasRange, high=biasRange, size=(numOutputs))
@@ -123,13 +126,13 @@ class Layer:
 		self.biasCostGradients = np.zeros_like(self.biases)
 		self.weightCostGradients = np.zeros_like(self.weights)
 
-	def applyGradients(self, learnRate):
-		self.setBiases(self.biases - self.biasCostGradients * learnRate, True)
-		self.setWeights(self.weights - self.weightCostGradients * learnRate, True)
+	def applyGradients(self, weightLearnRate, biasLearnRate):
+		self.setBiases(self.biases - self.biasCostGradients * biasLearnRate, True)
+		self.setWeights(self.weights - self.weightCostGradients * weightLearnRate, True)
 
 	def randomizeValues(self):
-		newWeights = np.random.uniform(low=-10, high=10, size=(self.numInputs, self.numOutputs))
-		newBiases = np.random.uniform(low=-10, high=10, size=(self.numOutputs))
+		newWeights = np.random.uniform(low=-self.weightRange, high=self.weightRange, size=(self.numInputs, self.numOutputs))
+		newBiases = np.random.uniform(low=-self.biasRange, high=self.biasRange, size=(self.numOutputs))
 
 		self.setBiases(newBiases, True)
 		self.setWeights(newWeights, True)

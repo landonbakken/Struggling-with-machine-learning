@@ -16,7 +16,7 @@ class ModelVisualizer:
 		self.minRange = minRange
 
 		# Initialize Pygame
-		self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
+		self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.RESIZABLE)
 		pygame.display.set_caption("Model Visualizer")
 
 	def drawConnections(self):
@@ -75,6 +75,9 @@ class ModelVisualizer:
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
 				exit()
+			elif event.type == pygame.VIDEORESIZE:  # Handles window resize events
+				self.WIDTH, self.HEIGHT = event.w, event.h
+				self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.RESIZABLE)
 
 		# Clear the screen
 		self.screen.fill(self.backgroundColor)

@@ -16,15 +16,26 @@ def boolToList(bool):
 
 def testInequality(points):
 	x, y = points
-	result = math.cos(10*x)/10 + .5 - y > 0 #sin wave
-	#result = x**2 + y**2 < .6**2 #circle with radius
+	#result = math.cos(10*x)/10 + .5 - y > 0 #sin wave
+	result = x**2 + y**2 < .8**2 #circle
+	#result = (x-1)**2 + (y-1)**2 < 1**2 #circle with radius in the corner
+	#result = x < -.5 or x > .5
 	return [1, 0] if result else [0, 1] #convert to list format
 
 def sigmoidFunction(value): 
 	return 1/(1 + math.exp(-value))
 
+def sigmoidFunction_fromTanH(value): 
+	return (math.tanh(value) + 1)/2
+
+def tanhFunction(value):
+	return math.tanh(value)
+
 def reluFunction(value): 
 	return max(0, value)
+
+def leakyReluFunction(value):
+	return max(.1 * value, value)
 
 #def activationFunctionDerivative(value): 
 #	activationValue = activationFunction(value)
@@ -86,6 +97,6 @@ def maxRangeFromTuples(tuple1, tuple2):
 
 # takes two numbers, and a percent of what the first number should be
 # good for rolling averages
-def combinedRatio(value1, value2, percent):
+def rollingMeanRatio(value1, value2, percent):
 	return value1 * percent + value2 * (1 - percent)
 
