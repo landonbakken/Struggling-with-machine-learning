@@ -145,14 +145,14 @@ class Layer:
 		self.setWeights(newWeights, True)
 
 	def getOutputs(self, inputs):
-		weightedInputs = np.empty(self.numOutputs, dtype=float)
-		for outputIndex, output in enumerate(range(self.numOutputs)):
-			weightedInput = self.biases[output]
-			for input in range(len(inputs)):
-				weightedInput += inputs[input] * self.weights[input][output]
-			weightedInputs[outputIndex] = self.activationFunction(weightedInput)
+		# Ensure inputs is a numpy array and reshape if necessary
+		inputs = np.array(inputs)
+
+		# Calculate weighted inputs using matrix multiplication
+		weightedInputs = np.dot(inputs, self.weights) + self.biases
 		
-		return weightedInputs
+		# Apply ReLU activation function element-wise
+		return self.activationFunction(weightedInputs)
 	
 	def setBiases(self, newBiases, setSliders = False):
 		self.biases = np.array(newBiases, dtype=float)

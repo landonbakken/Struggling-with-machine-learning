@@ -34,28 +34,26 @@ def testInequality(point):
 def raw(value):
 	return value
 
-
 def softmax(values):
     shifted_values = values - np.max(values)
     exp_values = np.exp(shifted_values)
     softmax_values = exp_values / np.sum(exp_values)
     return softmax_values
 
+#vectorized (and with a limit)
 def sigmoidFunction(value):
-	#to prevent errors from massive numbers
-	if abs(value) > 600:
-		return 0
-	
-	return 1/(1 + math.exp(-value))
+    return np.where(np.abs(value) > 500, 0, 1 / (1 + np.exp(-value)))
 
 def tanhFunction(value):
 	return math.tanh(value)
 
+#vectorized
 def reluFunction(value): 
-	return max(0, value)
+	return np.maximum(0, value)
 
+#vectorized
 def leakyReluFunction(value):
-	return max(.1 * value, value)
+	return np.maximum(.1, value)
 
 #def activationFunctionDerivative(value): 
 #	activationValue = activationFunction(value)

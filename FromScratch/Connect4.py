@@ -174,6 +174,8 @@ variation = .1
 populationSize = 100
 rounds = populationSize * 2
 offsetPercent = .03 #how many weights/biases are offset
+childrenPerParent = 11
+parents = 6
 
 #create model
 population = np.empty(populationSize, dtype=Model)
@@ -216,6 +218,7 @@ while True:
 		model.fitness = 0
 
 	#play rounds
+	guiUpdateIncrement = int(rounds/10)
 	for i in range(rounds):
 		#get players
 		players = np.random.choice(population, 2, replace=False)
@@ -224,8 +227,9 @@ while True:
 		playGame(game, players[0], players[1])
 
 		#update GUI
-		gamesDone.config(text=f"Games Done: {i}/{rounds}")
-		root.update()
+		if i % guiUpdateIncrement == 0:
+			gamesDone.config(text=f"Games Done: {i}/{rounds}")
+			root.update()
 	totalRounds += 1
 
 	#adaptive rounds lets it train fast at the beginning
@@ -235,14 +239,14 @@ while True:
 	population = np.array(sorted(population, key=lambda model: model.fitness, reverse=True))
 
 	#create children
-	for modelIndex in range(10):
+	for modelIndex in range(parents):
 		parent = population[modelIndex]
-		startIndex = (modelIndex) * 8 + 10 #start after the parents
-		children = population[startIndex:startIndex + 8] #8 children per top model in the top 9
+		startIndex = (modelIndex) * childrenPerParent + parents #start after the parents
+		children = population[startIndex:startIndex + childrenPerParent] #8 children per top model in the top 10
 		makeChildren(parent, children)
 	
-	#create 10 new
-	for modelIndex in range(90, 100):
+	#create new
+	for modelIndex in range(parents * (childrenPerParent + 1), populationSize):
 		population[modelIndex].randomizeValues()
 
 	visualizer.update(population[0])
