@@ -15,6 +15,7 @@ class Model:
 		self.regularizationStrength = regularizationStrength
 		self.regularizationOffset = regularizationOffset
 
+		dimentions = dimentions.copy()
 		numInputs = dimentions.pop(0)
 		for numOutputsIndex, numOutputs in enumerate(dimentions):
 			if numOutputsIndex + 1 == len(dimentions):
