@@ -8,10 +8,12 @@ class Datapoint:
 		self.pointColor = "green" if self.expectedOutputs[0] == 1 else "red" #really just for true/false (2 output nodes)
 
 class Model:
-	def __init__(self, dimentions, costFunction, hiddenActivationFunction, outputActivationFunction):
+	def __init__(self, dimentions, costFunction, hiddenActivationFunction, outputActivationFunction, regularizationStrength = None, regularizationOffset = .001):
 		self.layers = np.empty(len(dimentions) - 1, dtype=Layer) #-1 becasue the input layer isnt really a layer
 		self.dimentions = dimentions.copy()
 		self.costFunction = costFunction
+		self.regularizationStrength = regularizationStrength
+		self.regularizationOffset = regularizationOffset
 
 		numInputs = dimentions.pop(0)
 		for numOutputsIndex, numOutputs in enumerate(dimentions):
@@ -85,10 +87,18 @@ class Model:
 
 	def getCost(self, datapoint):
 		outputs = self.calculate(datapoint.inputs)
-
 		cost = 0
+
+		#compare calculated and expected outputs
 		for outputIndex in range(len(outputs)):
 			cost += self.costFunction(outputs[outputIndex], datapoint.expectedOutputs[outputIndex])
+		
+		#regularization
+		if self.regularizationStrength != None:
+			weightsSquaredSum = 0
+			for layer in self.layers:
+				weightsSquaredSum += np.sum((np.abs(layer.weights) - self.regularizationOffset) ** 2)
+			cost += self.regularizationStrength * weightsSquaredSum
 		
 		return cost, listToBool(datapoint.expectedOutputs) == listToBool(outputs)
 	

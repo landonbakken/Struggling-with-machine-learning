@@ -27,7 +27,7 @@ if not os.path.exists(memoryPath):
 learnRateUpdateRate = .1 #percent, how fast the update rate changes
 biasLearnRateRatio = .4 #this is so that the biases don't overshadow the weights
 learnRateRange = (.03, 15)
-dimentions = [2, 8, 8, 2] #of the model
+dimentions = [2, 10, 10, 2] #of the model
 
 #data settings
 datasetSize = 700 * 40
@@ -79,11 +79,10 @@ def loadMemory():
 	else:
 		print("Dimentions don't match ):")
 
+	#resets plots and makes sure it doesnt mess up stuff with a big learn rate
 	learnRate = 0
 	costPlot.values = []
 	learnRatePlot.values = []
-
-	
 
 def randomizeValues():
 	model.randomizeValues()

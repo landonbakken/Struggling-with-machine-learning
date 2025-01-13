@@ -33,9 +33,6 @@ def testInequality(point):
 def sigmoidFunction(value): 
 	return 1/(1 + math.exp(-value))
 
-def sigmoidFunction_fromTanH(value): 
-	return (math.tanh(value) + 1)/2
-
 def tanhFunction(value):
 	return math.tanh(value)
 
@@ -50,11 +47,7 @@ def leakyReluFunction(value):
 #	return activationValue * (1 - activationValue)
 
 def costFunction(calculated, expected):
-	error = calculated - expected
-	return error**2 #emphasises larger errors (and makes positive)
-
-def costFunctionDerivative(calculated, expected):
-	return 2 * (calculated - expected)
+	return (calculated - expected)**2 #emphasises larger errors (and makes positive)
 
 # Define the function to graph
 def mathFunction(x):
