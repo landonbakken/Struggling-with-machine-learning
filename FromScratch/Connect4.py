@@ -56,8 +56,10 @@ class Game:
 			y = np.argmax(column != 0)
 		else:
 			y = len(column)
+		
 		if y == 0:
-			return -self.turn #punish for placing in a non-valid place
+			return 0, False #punish for placing in a non-valid place
+		
 		y -= 1
 
 		#place peice
@@ -66,10 +68,7 @@ class Game:
 		#check if there was a win
 		state = self.checkState(x, y)
 
-		#switch turn
-		self.turn = -self.turn
-
-		return state
+		return state, True
 
 	#checks if the game is over
 	#modCol and modRow is the last modified peice position
@@ -127,19 +126,33 @@ def playGame(game, model_1, model_2, slow = False):
 		outputs = softmax(outputs) #converts to percentages
 
 		#place and update
-		position = np.argmax(outputs) #gets the index of the max value
-		outputs[position] = -1
-		winState = game.place(position)
+		valid = False
+		while not valid:
+			position = np.argmax(outputs) #gets the index of the max value
+			outputs[position] = -1
+			winState, valid = game.place(position)
+
+			#punish for invalid move
+			if not valid:
+				if game.turn == 1:
+					model_1.fitness -= .05
+				elif game.turn == -1:
+					model_2.fitness -= .05
+		
+		game.turn = -game.turn
 
 		if slow:
 			game.update()
 			time.sleep(.5)
 
+	#penalize for tie
 	if winState == -2:
-		return
-	
-	model_1.fitness += winState
-	model_2.fitness += -winState
+		model_1.fitness -= .1
+		model_2.fitness -= .1
+	#reward/penalize for win/lost
+	else:
+		model_1.fitness += winState
+		model_2.fitness += -winState
 
 def offsetArray(initialArray, offsetAmount, percentToOffset = 1):
 	# Number of elements to modify (10% of the total number of elements)
@@ -163,6 +176,8 @@ def makeChildren(parent, children):
 		offsetArray(newBiases, childVariation, offsetPercent)
 		
 		child.setValues(newWeights, newBiases)
+		child.age = 0
+		child.generation = parent.generation + 1
 	
 watchNextGame = False
 def watchGame():
@@ -172,7 +187,7 @@ def watchGame():
 dimentions = [42, 128, 64, 7]
 variation = .1
 populationSize = 100
-rounds = populationSize * 2
+rounds = 5000
 offsetPercent = .03 #how many weights/biases are offset
 childrenPerParent = 11
 parents = 6
@@ -182,6 +197,9 @@ population = np.empty(populationSize, dtype=Model)
 for i in range(populationSize):
 	newModel = Model(dimentions, costFunction, reluFunction, sigmoidFunction)
 	population[i] = newModel
+	population[i].randomizeValues()
+	population[i].generation = 0
+	population[i].age = 0
 
 #create visualizer
 pygame.init()
@@ -193,12 +211,16 @@ root.title("Controls and info")
 button1 = tk.Button(root, text="Watch Game", command=watchGame)
 button1.pack(pady=20)
 gamesDone = tk.Label(root, text="Games done: 0/0")
-gamesDone.pack(pady=10)		
+gamesDone.pack(pady=10)
+ageLabel = tk.Label(root, text="Oldest Model: 0")
+ageLabel.pack(pady=10)
+generationLabel = tk.Label(root, text="Most Generations: 0")
+generationLabel.pack(pady=10)		
 roundsLabel = tk.Label(root, text="Rounds: 0")
 roundsLabel.pack(pady=10)		
 timeLabel = tk.Label(root, text="Time: 0")
 timeLabel.pack(pady=10)		
-gamesPerSecondLabel = tk.Label(root, text="Games Per Second: 0/0")
+gamesPerSecondLabel = tk.Label(root, text="Games Per Second: 0")
 gamesPerSecondLabel.pack(pady=10)
 
 game = Game(visualizer.screen)
@@ -218,7 +240,7 @@ while True:
 		model.fitness = 0
 
 	#play rounds
-	guiUpdateIncrement = int(rounds/10)
+	guiUpdateIncrement = min(1000, int(rounds/10))
 	for i in range(rounds):
 		#get players
 		players = np.random.choice(population, 2, replace=False)
@@ -233,7 +255,7 @@ while True:
 	totalRounds += 1
 
 	#adaptive rounds lets it train fast at the beginning
-	rounds = min(rounds + 1, populationSize**2)
+	rounds = min(rounds + 100, (populationSize**2)*2)
 
 	#sort by fitness
 	population = np.array(sorted(population, key=lambda model: model.fitness, reverse=True))
@@ -241,6 +263,7 @@ while True:
 	#create children
 	for modelIndex in range(parents):
 		parent = population[modelIndex]
+		parent.age += 1
 		startIndex = (modelIndex) * childrenPerParent + parents #start after the parents
 		children = population[startIndex:startIndex + childrenPerParent] #8 children per top model in the top 10
 		makeChildren(parent, children)
@@ -248,6 +271,8 @@ while True:
 	#create new
 	for modelIndex in range(parents * (childrenPerParent + 1), populationSize):
 		population[modelIndex].randomizeValues()
+		population[modelIndex].generation = 0
+		population[modelIndex].age = 0
 
 	visualizer.update(population[0])
 
@@ -255,6 +280,11 @@ while True:
 	gamesPerSecondLabel.config(text=f"Games Per Second: {int(gamesPerSecond)}")
 	roundsLabel.config(text=f"Rounds: {totalRounds}")
 	timeLabel.config(text=f"Time (seconds): {int(time.time() - trainingStartTime)}")
+	
+	maxAge = max(model.age for model in population)
+	ageLabel.config(text=f"Oldest Model: {maxAge}")
+	maxGeneration = max(model.generation for model in population)
+	generationLabel.config(text=f"Oldest Strand: {maxGeneration}")
 
 	if watchNextGame:
 		watchNextGame = False
