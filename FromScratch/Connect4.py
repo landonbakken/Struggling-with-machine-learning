@@ -154,7 +154,7 @@ def playGame(game, model_1, model_2, slow = False):
 		model_1.fitness += winState
 		model_2.fitness += -winState
 
-def offsetArray(initialArray, offsetAmount, percentToOffset = 1):
+def offsetArray(initialArray, offsetAmount, percentToOffset):
 	# Number of elements to modify (10% of the total number of elements)
 	num_elements_to_modify = int(initialArray.size * percentToOffset)
 
@@ -164,16 +164,31 @@ def offsetArray(initialArray, offsetAmount, percentToOffset = 1):
 	# Set the selected elements to random values
 	initialArray[indices] += np.random.uniform(-offsetAmount, offsetAmount, num_elements_to_modify)
 
+def replaceArray(initialArray, randomRange, percentToReplace):
+	# Number of elements to modify (10% of the total number of elements)
+	num_elements_to_modify = int(initialArray.size * percentToReplace)
+
+	# Get indices of the array's elements
+	indices = np.unravel_index(np.random.choice(initialArray.size, num_elements_to_modify, replace=False), initialArray.shape)
+
+	# Set the selected elements to random values
+	initialArray[indices] = np.random.uniform(-randomRange[0], randomRange[1], num_elements_to_modify)
+
 def makeChildren(parent, children):
 	weights, biases = parent.getValues()
 	for childIndex, child in enumerate(children):
-		childVariation = variation * childIndex / len(children) #some children have very little variation, and some have a lot
+		childVariation = offsetAmount * childIndex / len(children) #some children have very little variation, and some have a lot
 		
 		newWeights = weights.copy()
 		newBiases = biases.copy()
 		
+		#offsets
 		offsetArray(newWeights, childVariation, offsetPercent)
 		offsetArray(newBiases, childVariation, offsetPercent)
+
+		#replacements
+		replaceArray(newWeights, replacedRange, replacedPercent)
+		replaceArray(newBiases, replacedRange, replacedPercent)
 		
 		child.setValues(newWeights, newBiases)
 		child.age = 0
@@ -185,12 +200,14 @@ def watchGame():
 	watchNextGame = True
 
 dimentions = [42, 128, 64, 7]
-variation = .1
 populationSize = 100
 rounds = 5000
-offsetPercent = .03 #how many weights/biases are offset
-childrenPerParent = 11
-parents = 6
+offsetAmount = .1
+offsetPercent = .01 #how many weights/biases are offset
+replacedPercent = .04 #how many weights/biases are offset
+replacedRange = (-1, 1)
+childrenPerParent = 12
+parents = 7
 
 #create model
 population = np.empty(populationSize, dtype=Model)
