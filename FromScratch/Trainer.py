@@ -135,6 +135,7 @@ learnRatePlot = IncrementingScatter(fig, axs[0][1], "Learn Cycles", "Learn Rate"
 fig.tight_layout()
 
 #create visualizer
+pygame.init()
 visualizer = ModelVisualizer(model, ax=axs[0, 0])
 
 learnRate = learnRateRange[1]

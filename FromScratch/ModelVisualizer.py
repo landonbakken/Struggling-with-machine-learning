@@ -2,8 +2,6 @@ from SimpleModel import *
 from MathThings import *
 import pygame
 
-pygame.init()
-
 class ModelVisualizer:
 	def __init__(self, model, windowWidth = 800, windowHeight = 600, nodeRadius = 25, connectionWidth = 5, outlineColor = (100, 100, 100), backgroundColor=(0, 0, 0), minRange = (-1, 1), ax=None):
 		self.model = model

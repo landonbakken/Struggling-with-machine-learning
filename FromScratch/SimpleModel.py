@@ -58,10 +58,6 @@ class Model:
 		return self.getTotalCost(datapoints, False)
 	
 	def calculate(self, inputs):
-		if len(inputs) != self.dimentions[0]:
-			print("Inputs do not match")
-			return
-
 		for layer in self.layers:
 			inputs = layer.getOutputs(inputs)
 
@@ -148,10 +144,6 @@ class Layer:
 		self.setWeights(newWeights, True)
 
 	def getOutputs(self, inputs):
-		if len(inputs) != self.numInputs:
-			print("Incorrect number of inputs")
-			return None
-
 		weightedInputs = np.empty(self.numOutputs, dtype=float)
 		for outputIndex, output in enumerate(range(self.numOutputs)):
 			weightedInput = self.biases[output]
