@@ -69,11 +69,11 @@ class Model:
 			layer.randomizeValues()
 
 	def getValues(self):
-		weights = []
-		biases = []
-		for layer in self.layers:
-			weights.append(layer.weights)
-			biases.append(layer.biases)
+		weights = np.empty(len(self.layers), dtype=object)
+		biases = np.empty(len(self.layers), dtype=object)
+		for layerIndex, layer in enumerate(self.layers):
+			weights[layerIndex] = layer.weights
+			biases[layerIndex] = layer.biases
 
 		return weights, biases
 

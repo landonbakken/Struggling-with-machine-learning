@@ -3,7 +3,7 @@ from MathThings import *
 import pygame
 
 class ModelVisualizer:
-	def __init__(self, model, windowWidth = 800, windowHeight = 600, nodeRadius = 25, connectionWidth = 5, outlineColor = (100, 100, 100), backgroundColor=(0, 0, 0), minRange = (-1, 1), ax=None):
+	def __init__(self, model, windowWidth = 800, windowHeight = 600, nodeRadius = 25, connectionWidth = 5, outlineColor = (100, 100, 100), backgroundColor=(0, 0, 0), minRange = (-1, 1), ax=None, outlines = True):
 		self.model = model
 		self.WIDTH = windowWidth
 		self.HEIGHT = windowHeight
@@ -13,6 +13,7 @@ class ModelVisualizer:
 		self.backgroundColor = backgroundColor
 		self.minRange = minRange
 		self.ax = ax
+		self.outlines = outlines
 
 		#make flags
 		flag = pygame.RESIZABLE if self.ax == None else pygame.HIDDEN
@@ -50,7 +51,8 @@ class ModelVisualizer:
 					weight = weights[nodeIndex_1, nodeIndex_2]
 					weight = mapToRange(weight, layerWeightRange, (-1, 1))
 					color = interpolateColors(weight)
-					pygame.draw.line(self.screen, self.outlineColor, (x_1, y_1), (x_2, y_2), self.connectionWidth + 2)
+					if self.outlines:
+						pygame.draw.line(self.screen, self.outlineColor, (x_1, y_1), (x_2, y_2), self.connectionWidth + 2)
 					pygame.draw.line(self.screen, color, (x_1, y_1), (x_2, y_2), self.connectionWidth)
 
 	def drawLayerNodes(self):
@@ -71,10 +73,14 @@ class ModelVisualizer:
 				else:
 					bias = mapToRange(biases[nodeIndex], layerBiasRange, (-1, 1))
 					color = interpolateColors(bias)
-				pygame.draw.circle(self.screen, self.outlineColor, (x, y), self.nodeRadius + 1)
+				if self.outlines:
+					pygame.draw.circle(self.screen, self.outlineColor, (x, y), self.nodeRadius + 1)
 				pygame.draw.circle(self.screen, color, (x, y), self.nodeRadius)
 
-	def update(self):
+	def update(self, newModel = None):
+		if newModel != None:
+			self.model = newModel
+
 		#check if closed window
 		for event in pygame.event.get():
 			if event.type == pygame.QUIT:
@@ -82,6 +88,7 @@ class ModelVisualizer:
 			elif event.type == pygame.VIDEORESIZE:  # Handles window resize events
 				self.WIDTH, self.HEIGHT = event.w, event.h
 				self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT), pygame.RESIZABLE)
+				pass
 
 		# Clear the screen
 		self.screen.fill(self.backgroundColor)

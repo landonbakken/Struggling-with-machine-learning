@@ -1,29 +1,26 @@
 import numpy as np
 import pygame
 import tkinter as tk
+import time
 
 from SimpleModel import *
 from ModelVisualizer import *
 from MathThings import *
 
 class Game:
-	def __init__(self, firstTurn = 1):
+	def __init__(self, screen):
 		#create the board
 		self.WIDTH = 700
 		self.HEIGHT = 600
 		self.peiceRadius = 45
 		self.peiceColors = [(200, 50, 50), (50, 200, 50)]
 		self.backgroundColor = (0, 0, 0)
-		self.firstTurn = firstTurn
+		self.screen = screen
 
 		self.restart()
 
-		#create screen
-		self.screen = pygame.display.set_mode((self.WIDTH, self.HEIGHT))
-		pygame.display.set_caption("Model Visualizer")
-
 	def restart(self):
-		self.turn = self.firstTurn
+		self.turn = np.random.choice([-1, 1])
 		self.board = np.zeros((7, 6))
 
 	def draw(self):
@@ -60,7 +57,7 @@ class Game:
 		else:
 			y = len(column)
 		if y == 0:
-			return 0, False
+			return -self.turn #punish for placing in a non-valid place
 		y -= 1
 
 		#place peice
@@ -72,7 +69,7 @@ class Game:
 		#switch turn
 		self.turn = -self.turn
 
-		return state, True
+		return state
 
 	#checks if the game is over
 	#modCol and modRow is the last modified peice position
@@ -95,6 +92,10 @@ class Game:
 		if self.stepPeices(modCol, modRow, -1, 1, target) + self.stepPeices(modCol, modRow, 1, -1, target) + 1 >= 4:
 			return target
 		
+		#draw
+		if not np.any(self.board == 0):
+			return -2
+		
 		return 0
 
 	def stepPeices(self, x, y, xStep, yStep, target):
@@ -112,43 +113,10 @@ class Game:
 		
 		return 0
 	
-allowedToStep = False
-def step():
-	global allowedToStep
-
-	allowedToStep = True
-
-dimentions = [42, 2, 7]
-
-#create model
-model_1 = Model(dimentions, costFunction, leakyReluFunction, sigmoidFunction)
-model_2 = Model(dimentions, costFunction, leakyReluFunction, sigmoidFunction)
-
-#create visualizer
-pygame.init()
-#visualizer = ModelVisualizer(model_1)
-
-#controls window
-root = tk.Tk()
-root.title("Controls and info")
-button1 = tk.Button(root, text="Step", command=step)
-button1.pack(pady=20)
-		
-
-game = Game(firstTurn=-1)
-while True:
-	#check events
-	for event in pygame.event.get():
-		if event.type == pygame.QUIT:
-			exit()
-
-	#update controls window
-	root.update_idletasks()
-	root.update()
-
-	#visualizer.update()
-
-	if True:#allowedToStep:
+def playGame(game, model_1, model_2, slow = False):
+	game.restart()
+	winState = 0
+	while winState == 0:
 		#get the model's placement
 		boardState = game.board.flatten()
 		if game.turn == 1:
@@ -156,15 +124,134 @@ while True:
 		elif game.turn == -1:
 			outputs = model_2.calculate(boardState)
 
-		valid = False
-		while not valid:
-			#place and update
-			position = np.argmax(outputs) #gets the index of the max value
-			outputs[position] = -1
-			winState, valid = game.place(position)
-		game.update()
+		outputs = softmax(outputs) #converts to percentages
 
-		if winState != 0:
-			game.restart()
+		#place and update
+		position = np.argmax(outputs) #gets the index of the max value
+		outputs[position] = -1
+		winState = game.place(position)
 
-		allowedToStep = False
+		if slow:
+			game.update()
+			time.sleep(.5)
+
+	if winState == -2:
+		return
+	
+	model_1.fitness += winState
+	model_2.fitness += -winState
+
+def offsetArray(initialArray, offsetAmount, percentToOffset = 1):
+	# Number of elements to modify (10% of the total number of elements)
+	num_elements_to_modify = int(initialArray.size * percentToOffset)
+
+	# Get indices of the array's elements
+	indices = np.unravel_index(np.random.choice(initialArray.size, num_elements_to_modify, replace=False), initialArray.shape)
+
+	# Set the selected elements to random values
+	initialArray[indices] += np.random.uniform(-offsetAmount, offsetAmount, num_elements_to_modify)
+
+def makeChildren(parent, children):
+	weights, biases = parent.getValues()
+	for childIndex, child in enumerate(children):
+		childVariation = variation * childIndex / len(children) #some children have very little variation, and some have a lot
+		
+		newWeights = weights.copy()
+		newBiases = biases.copy()
+		
+		offsetArray(newWeights, childVariation, offsetPercent)
+		offsetArray(newBiases, childVariation, offsetPercent)
+		
+		child.setValues(newWeights, newBiases)
+	
+watchNextGame = False
+def watchGame():
+	global watchNextGame
+	watchNextGame = True
+
+dimentions = [42, 128, 64, 7]
+variation = .1
+populationSize = 100
+rounds = populationSize * 2
+offsetPercent = .03 #how many weights/biases are offset
+
+#create model
+population = np.empty(populationSize, dtype=Model)
+for i in range(populationSize):
+	newModel = Model(dimentions, costFunction, reluFunction, sigmoidFunction)
+	population[i] = newModel
+
+#create visualizer
+pygame.init()
+visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=1700, nodeRadius=6, connectionWidth=2, outlines=False)
+
+#controls window
+root = tk.Tk()
+root.title("Controls and info")
+button1 = tk.Button(root, text="Watch Game", command=watchGame)
+button1.pack(pady=20)
+gamesDone = tk.Label(root, text="Games done: 0/0")
+gamesDone.pack(pady=10)		
+roundsLabel = tk.Label(root, text="Rounds: 0")
+roundsLabel.pack(pady=10)		
+timeLabel = tk.Label(root, text="Time: 0")
+timeLabel.pack(pady=10)		
+gamesPerSecondLabel = tk.Label(root, text="Games Per Second: 0/0")
+gamesPerSecondLabel.pack(pady=10)
+
+game = Game(visualizer.screen)
+trainingStartTime = time.time()
+gamesPerSecond = 0
+totalRounds = 0
+while True:
+	startTime = time.time()
+
+	#check events
+	for event in pygame.event.get():
+		if event.type == pygame.QUIT:
+			exit()
+
+	#reset fitness
+	for model in population:
+		model.fitness = 0
+
+	#play rounds
+	for i in range(rounds):
+		#get players
+		players = np.random.choice(population, 2, replace=False)
+
+		#play game
+		playGame(game, players[0], players[1])
+
+		#update GUI
+		gamesDone.config(text=f"Games Done: {i}/{rounds}")
+		root.update()
+	totalRounds += 1
+
+	#adaptive rounds lets it train fast at the beginning
+	rounds = min(rounds + 1, populationSize**2)
+
+	#sort by fitness
+	population = np.array(sorted(population, key=lambda model: model.fitness, reverse=True))
+
+	#create children
+	for modelIndex in range(10):
+		parent = population[modelIndex]
+		startIndex = (modelIndex) * 8 + 10 #start after the parents
+		children = population[startIndex:startIndex + 8] #8 children per top model in the top 9
+		makeChildren(parent, children)
+	
+	#create 10 new
+	for modelIndex in range(90, 100):
+		population[modelIndex].randomizeValues()
+
+	visualizer.update(population[0])
+
+	gamesPerSecond = (gamesPerSecond + rounds/(time.time() - startTime))/2
+	gamesPerSecondLabel.config(text=f"Games Per Second: {int(gamesPerSecond)}")
+	roundsLabel.config(text=f"Rounds: {totalRounds}")
+	timeLabel.config(text=f"Time (seconds): {int(time.time() - trainingStartTime)}")
+
+	if watchNextGame:
+		watchNextGame = False
+		playGame(game, population[0], population[1], True) #top two play

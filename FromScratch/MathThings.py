@@ -1,4 +1,5 @@
 import math
+import numpy as np
 
 # Colors
 BLACK = (0, 0, 0)
@@ -30,7 +31,21 @@ def testInequality(point):
 	#result = x < -.5 or x > .5
 	return [1, 0] if result else [0, 1] #convert to list format
 
-def sigmoidFunction(value): 
+def raw(value):
+	return value
+
+
+def softmax(values):
+    shifted_values = values - np.max(values)
+    exp_values = np.exp(shifted_values)
+    softmax_values = exp_values / np.sum(exp_values)
+    return softmax_values
+
+def sigmoidFunction(value):
+	#to prevent errors from massive numbers
+	if abs(value) > 600:
+		return 0
+	
 	return 1/(1 + math.exp(-value))
 
 def tanhFunction(value):
