@@ -1,7 +1,6 @@
 import random
 import tkinter as tk
 import pickle
-import os
 import time
 
 from SimpleModel import *
@@ -9,19 +8,14 @@ from Plotter import *
 from MathThings import *
 from ModelVisualizer import *
 from VariableSliders import *
+import Memory
 
 #plot/data ranges
 x_range = (-1, 1)
 y_range = (-1, 1)
 
 #memory paths
-memoryPath = "FromScratch/Memory/"
-memoryFile = memoryPath + "memory.pickle"
-
-#create the memory folder if it doesnt exist
-if not os.path.exists(memoryPath):
-    os.makedirs(memoryPath)
-    print(f"Folder '{memoryPath}' created.")
+memoryFile = Memory.memoryPath + "memory.pickle"
 
 #model settings
 learnRateUpdateRate = .1 #percent, how fast the update rate changes
@@ -55,34 +49,18 @@ def randomPointsWithCondition(num_points, condition, x_range, y_range):
 def stop(event):
 	exit()
 
-def saveMemory():
-	weights, biases = model.getValues()
-	dimentions = model.dimentions
-
-	variables = [dimentions, weights, biases]
-	with open(memoryFile, 'wb') as f:
-		pickle.dump(variables, f)
-
-	print("Saved memory to files")
-
-def loadMemory():
+def loadModel():
 	global learnRate
 
-	with open(memoryFile, 'rb') as f:
-		variables = pickle.load(f)
-	dimentions, weights, biases = variables
-	
-	if dimentions == model.dimentions:
-		model.setValues(weights, biases)
-
-		print("Loaded memory from files")
-	else:
-		print("Dimentions don't match ):")
+	Memory.loadModel(memoryFile, model)
 
 	#resets plots and makes sure it doesnt mess up stuff with a big learn rate
 	learnRate = 0
 	costPlot.values = []
 	learnRatePlot.values = []
+
+def saveModel():
+	Memory.saveModel(memoryFile, model)
 
 def randomizeValues():
 	model.randomizeValues()
@@ -103,9 +81,10 @@ learnCyclesLabel = tk.Label(root, text="Learn Cycles per frame: N/A")
 learnCyclesLabel.pack(pady=10)
 
 #save/load buttons
-button1 = tk.Button(root, text="Save Memory", command=saveMemory)
+#2-10-10-2-sin
+button1 = tk.Button(root, text="Save Memory", command=saveModel)
 button1.pack(pady=10)
-button2 = tk.Button(root, text="Load Memory", command=loadMemory)
+button2 = tk.Button(root, text="Load Memory", command=loadModel)
 button2.pack(pady=10)
 button3 = tk.Button(root, text="Randomize", command=randomizeValues)
 button3.pack(pady=10)

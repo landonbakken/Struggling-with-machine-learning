@@ -6,6 +6,7 @@ import time
 from SimpleModel import *
 from ModelVisualizer import *
 from MathThings import *
+from Memory import *
 
 class Game:
 	def __init__(self, screen):
@@ -197,30 +198,27 @@ def makeChildren(parent, children):
 		child.setValues(newWeights, newBiases)
 		child.age = 0
 		child.generation = parent.generation + 1
-	
-watchNextGame = False
-def watchGame():
-	global watchNextGame
-	watchNextGame = True
 
 dimentions = [42, 128, 64, 7]
-populationSize = 100
+childrenPerParent = 19
+parents = 5
+populationSize = parents * childrenPerParent + parents
 rounds = 3000 #the initial amount
 roundsMax = populationSize**2 #final amount
 
 #rewards/punishments
 fitness_invalid = -.1
 fitness_tie = -.3
-fitness_loss = -.5
+fitness_loss = -1
 fitness_win = 1
 
 offsetAmount = .1 #a random range from -offset to offset
-offsetPercent = .03 #how many weights/biases are offset
-replacedPercent = .15 #how many weights/biases are replaced
+offsetPercent = .05 #how many weights/biases are offset
+replacedPercent = .13 #how many weights/biases are replaced
 replacedRange = (-1, 1)
 
-childrenPerParent = 19
-parents = 5
+#memory paths
+memoryFile = memoryPath + "memory.pickle"
 
 #create model
 population = np.empty(populationSize, dtype=Model)
@@ -231,6 +229,11 @@ for i in range(populationSize):
 	population[i].generation = 0
 	population[i].age = 0
 
+#button vars
+watchNextGame = False
+saveMem = False
+loadMem = False
+
 #create visualizer
 pygame.init()
 visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=1700, nodeRadius=6, connectionWidth=2, outlines=False)
@@ -238,8 +241,12 @@ visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=1700, 
 #controls window
 root = tk.Tk()
 root.title("Controls and info")
-button1 = tk.Button(root, text="Watch Game", command=watchGame)
-button1.pack(pady=20)
+button1 = tk.Button(root, text="Watch Game", command=lambda: exec("global watchNextGame; watchNextGame = True"))
+button1.pack(pady=10)
+button1 = tk.Button(root, text="Save Memory", command=lambda: exec("global saveMem; saveMem = True"))
+button1.pack(pady=10)
+button1 = tk.Button(root, text="Load Memory", command=lambda: exec("global loadMem; loadMem = True"))
+button1.pack(pady=10)
 gamesDone = tk.Label(root, text="Games done: 0/0")
 gamesDone.pack(pady=10)
 ageLabel = tk.Label(root, text="Oldest Model: 0")
@@ -289,6 +296,16 @@ while True:
 
 	#sort by fitness
 	population = np.array(sorted(population, key=lambda model: model.fitness, reverse=True))
+
+	if saveMem:
+		saveMem = False
+		saveModels(memoryFile, population[0:parents])
+		print("Saved memory to files")
+
+	if loadMem:
+		loadMem = False
+		loadModels(memoryFile, population[0:parents])
+		print("Loaded memory from files")
 
 	#create children
 	for modelIndex in range(parents):
