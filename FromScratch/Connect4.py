@@ -2,6 +2,7 @@ import numpy as np
 import pygame
 import tkinter as tk
 import time
+import statistics
 
 from SimpleModel import *
 from ModelVisualizer import *
@@ -57,25 +58,39 @@ class Game:
 			y = np.argmax(column != 0)
 		else:
 			y = len(column)
-		
-		if y == 0:
-			return 0, False #punish for placing in a non-valid place
-		
 		y -= 1
-
+		
+		#not a valid place (column is full)
+		if y == -1:
+			return 0, False, fitness_invalid
+		
 		#place peice
 		self.board[x, y] = self.turn
 
-		#check if there was a win
-		state = self.checkState(x, y)
+		fitnessOffset = 0
+		fitnessOffset += self.defensiveReward(x, y, self.turn)
+		fitnessOffset += self.offensiveReward(x, y, self.turn)
 
-		return state, True
+		#check if there was a win
+		state = self.checkState(x, y, self.turn)
+
+		return state, True, fitnessOffset
+	
+	def defensiveReward(self, x, y, player):
+		reward = 0
+		#block a 3
+		#split a xoxx
+		return reward
+	
+	def offensiveReward(self, x, y, player):
+		reward = 0
+		#double 3 in a row
+		#line peices up
+		return reward
 
 	#checks if the game is over
 	#modCol and modRow is the last modified peice position
-	def checkState(self, modCol, modRow):
-		target = self.board[modCol, modRow]
-		
+	def checkState(self, modCol, modRow, target):
 		#horizontal
 		if self.stepPeices(modCol, modRow, 1, 0, target) + self.stepPeices(modCol, modRow, -1, 0, target) + 1 >= 4:
 			return target
@@ -96,6 +111,7 @@ class Game:
 		if not np.any(self.board == 0):
 			return -2
 		
+		#nothing (no win, no draw)
 		return 0
 
 	def stepPeices(self, x, y, xStep, yStep, target):
@@ -117,38 +133,57 @@ def playGame(game, model_1, model_2, slow = False):
 	game.restart()
 	winState = 0
 	while winState == 0:
+		#flip who's turn it is (at the start so things are more simple)
 		game.turn = -game.turn
 
-		#get the model's placement
+		#get the game state
 		boardState = game.board.flatten()
+		boardState *= game.turn #flip the peices if its player -1 turn (-1 is always the opponent in the neural model)
+		columnState = np.abs(game.board[:, 0])
+		gameState = np.concatenate((boardState, columnState))
+
+		#get model's choice
 		if game.turn == 1:
-			outputs = model_1.calculate(boardState)
+			outputs = model_1.calculate(gameState)
 		elif game.turn == -1:
-			outputs = model_2.calculate(boardState)
+			outputs = model_2.calculate(gameState)
 
 		#place and update
 		valid = False
 		while not valid:
-			position = np.argmax(outputs) #gets the index of the max value
-			outputs[position] = -1
-			winState, valid = game.place(position)
+			#get the index of the max value (move with the highest percent)
+			position = np.argmax(outputs)
 
-			#punish for invalid move
-			if not valid:
-				if game.turn == 1:
-					model_1.fitness += fitness_invalid
-				elif game.turn == -1:
-					model_2.fitness += fitness_invalid
+			#remove it from the options (without moving them around)
+			outputs[position] = np.min(outputs) - 1
+
+			#place peice
+			winState, valid, fitnessEffect = game.place(position)
+
+			#change how good a move is
+			if game.turn == 1:
+				model_1.fitness += fitnessEffect
+			elif game.turn == -1:
+				model_2.fitness += fitnessEffect
+		
+		#valid move
+		if game.turn == 1:
+			model_1.fitness += fitness_valid
+		elif game.turn == -1:
+			model_2.fitness += fitness_valid
+
+		
+
 
 		if slow:
 			game.update()
 			time.sleep(.5)
 
-	#penalize for tie
+	#tie
 	if winState == -2:
 		model_1.fitness += fitness_tie
 		model_2.fitness += fitness_tie
-	#reward/penalize for win/lost
+	#win/lost
 	else:
 		if winState == 1:
 			model_1.fitness += fitness_win
@@ -180,32 +215,54 @@ def replaceArray(initialArray, randomRange, percentToReplace):
 def makeChildren(parent, children):
 	weights, biases = parent.getValues()
 	for childIndex, child in enumerate(children):
-		childVariation = offsetAmount * childIndex / len(children) #some children have very little variation, and some have a lot
+		#some children have very little variation, and some have a lot
+		childVariation = offsetAmount * childIndex / len(children) 
+		childOffsetPercent = offsetPercent * childIndex / len(children) 
+		childReplacePercent = replacedPercent * childIndex / len(children) 
 		
 		newWeights = weights.copy()
 		newBiases = biases.copy()
 		
 		#offsets
-		offsetArray(newWeights, childVariation, offsetPercent)
-		offsetArray(newBiases, childVariation, offsetPercent)
+		offsetArray(newWeights, childVariation, childOffsetPercent)
+		offsetArray(newBiases, childVariation, childOffsetPercent)
 
 		#replacements
-		replaceArray(newWeights, replacedRange, replacedPercent)
-		replaceArray(newBiases, replacedRange, replacedPercent)
+		replaceArray(newWeights, replacedRange, childReplacePercent)
+		replaceArray(newBiases, replacedRange, childReplacePercent)
 		
 		child.setValues(newWeights, newBiases)
 		child.age = 0
 		child.generation = parent.generation + 1
+"""
+Input:
+42 for board state (6x7)
+	can have -1 for opponent, 1 for you
+7 for if the column is filled
+	0 for not filled, 1 for filled
 
-dimentions = [42, 128, 64, 7] #the dimentions of the models
+Hidden:
+128 first
+64 second
+leaky ReLU
+
+Output:
+7 for each possible placement
+	uses softmax to get highest
+	if it isnt open, penalize then move to next highest
+"""
+dimentions = [49, 128, 64, 7] #the dimentions of the models
+
 childrenPerParent = 15 #how many models are gotten from each parent
 parents = 10 #the amount of models kept
-populationSize = parents * childrenPerParent + parents
+randomModels = 0 #usually just slows down the start, can be helpfull tho
+populationSize = parents * childrenPerParent + parents + randomModels
 gamesPerGenerationPerModel = 10 #the games that each model plays per generation
-#gamesPerGenerationPerModelMax = 15
+minFitness = -10 #how low a model's fitness has to go to just forfiet the rest of the matches
 
 #rewards/punishments
 fitness_invalid = -.2 #if there is an invalid move
+fitness_valid = 0 #if there is a valid move
 fitness_tie = -.3
 fitness_loss = -1
 fitness_win = 1.5
@@ -257,11 +314,18 @@ timeLabel = tk.Label(root, text="Time: 0")
 timeLabel.pack(pady=10)		
 gamesPerSecondLabel = tk.Label(root, text="Games Per Second: 0")
 gamesPerSecondLabel.pack(pady=10)
+prematureStopLabel = tk.Label(root, text="Models Abandoned: 0")
+prematureStopLabel.pack(pady=10)
+averageFitnessLabel = tk.Label(root, text="Avg Fitness: 0")
+averageFitnessLabel.pack(pady=10)
+bestFitnessLabel = tk.Label(root, text="Best Fitness: 0")
+bestFitnessLabel.pack(pady=10)
 
 game = Game(visualizer.screen)
 trainingStartTime = time.time()
 gamesPerSecond = 0
 totalRounds = 0
+abandoned = 0
 while True:
 	startTime = time.time()
 
@@ -283,6 +347,10 @@ while True:
 		for opponent in opponents:
 			#play each match per opponent
 			playGame(game, model, opponent)
+
+			if model.fitness < minFitness:
+				abandoned += 1
+				break
 
 		#update GUI
 		gamesDone.config(text=f"Games Done: {(modelIndex + 1) * gamesPerGenerationPerModel}/{(populationSize * gamesPerGenerationPerModel)}")
@@ -320,13 +388,22 @@ while True:
 
 	gamesPerSecond = (gamesPerSecond + (populationSize * gamesPerGenerationPerModel)/(time.time() - startTime))/2
 	gamesPerSecondLabel.config(text=f"Games Per Second: {int(gamesPerSecond)}")
-	roundsLabel.config(text=f"Rounds: {totalRounds}")
+	roundsLabel.config(text=f"Generations: {totalRounds}")
 	timeLabel.config(text=f"Time (seconds): {int(time.time() - trainingStartTime)}")
 	
 	maxAge = max(model.age for model in population)
 	ageLabel.config(text=f"Oldest Model: {maxAge}")
 	maxGeneration = max(model.generation for model in population)
 	generationLabel.config(text=f"Oldest Strand: {maxGeneration}")
+
+	averageFitness_mean = statistics.median(model.fitness for model in population)
+	averageFitness_median = statistics.mean(model.fitness for model in population)
+	averageFitnessLabel.config(text=f"Fitness: Mean: {averageFitness_mean}, Median: {averageFitness_median}")
+
+	bestFitnessLabel.config(text=f"Max Fitness: {population[0].fitness}")
+
+	prematureStopLabel.config(text=f"Models Abandoned this round: {abandoned}")
+	abandoned = 0
 
 	if watchNextGame:
 		watchNextGame = False
