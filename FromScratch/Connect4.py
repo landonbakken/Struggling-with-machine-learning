@@ -126,8 +126,6 @@ def playGame(game, model_1, model_2, slow = False):
 		elif game.turn == -1:
 			outputs = model_2.calculate(boardState)
 
-		outputs = softmax(outputs) #converts to percentages
-
 		#place and update
 		valid = False
 		while not valid:
@@ -199,23 +197,23 @@ def makeChildren(parent, children):
 		child.age = 0
 		child.generation = parent.generation + 1
 
-dimentions = [42, 128, 64, 7]
-childrenPerParent = 19
-parents = 5
+dimentions = [42, 128, 64, 7] #the dimentions of the models
+childrenPerParent = 15 #how many models are gotten from each parent
+parents = 10 #the amount of models kept
 populationSize = parents * childrenPerParent + parents
-rounds = 3000 #the initial amount
-roundsMax = populationSize**2 #final amount
+gamesPerGenerationPerModel = 10 #the games that each model plays per generation
+#gamesPerGenerationPerModelMax = 15
 
 #rewards/punishments
-fitness_invalid = -.1
+fitness_invalid = -.2 #if there is an invalid move
 fitness_tie = -.3
 fitness_loss = -1
-fitness_win = 1
+fitness_win = 1.5
 
-offsetAmount = .1 #a random range from -offset to offset
-offsetPercent = .05 #how many weights/biases are offset
-replacedPercent = .13 #how many weights/biases are replaced
-replacedRange = (-1, 1)
+offsetAmount = .2 #a random range from -offsetAmount to -offsetAmount
+offsetPercent = .1 #percentage of weights/biases that are offset for each child
+replacedPercent = .2 #percentage of weights/biases that are replaced for each child
+replacedRange = (-1, 1) #the random range that weights are set to
 
 #memory paths
 memoryFile = memoryPath + "memory.pickle"
@@ -223,7 +221,7 @@ memoryFile = memoryPath + "memory.pickle"
 #create model
 population = np.empty(populationSize, dtype=Model)
 for i in range(populationSize):
-	newModel = Model(dimentions, costFunction, reluFunction, sigmoidFunction)
+	newModel = Model(dimentions, costFunction, leakyReluFunction, softmax)
 	population[i] = newModel
 	population[i].randomizeValues()
 	population[i].generation = 0
@@ -276,23 +274,20 @@ while True:
 	for model in population:
 		model.fitness = 0
 
-	#play rounds
-	guiUpdateIncrement = min(1000, int(rounds/10))
-	for i in range(rounds):
-		#get players
-		players = np.random.choice(population, 2, replace=False)
+	#play matches
+	for modelIndex, model in enumerate(population):
+		
+		#get opponents
+		opponents = np.random.choice(population, gamesPerGenerationPerModel, replace=False)
 
-		#play game
-		playGame(game, players[0], players[1])
+		for opponent in opponents:
+			#play each match per opponent
+			playGame(game, model, opponent)
 
 		#update GUI
-		if i % guiUpdateIncrement == 0:
-			gamesDone.config(text=f"Games Done: {i}/{rounds}")
-			root.update()
+		gamesDone.config(text=f"Games Done: {(modelIndex + 1) * gamesPerGenerationPerModel}/{(populationSize * gamesPerGenerationPerModel)}")
+		root.update()
 	totalRounds += 1
-
-	#adaptive rounds lets it train fast at the beginning
-	rounds = min(rounds + 100, roundsMax)
 
 	#sort by fitness
 	population = np.array(sorted(population, key=lambda model: model.fitness, reverse=True))
@@ -323,7 +318,7 @@ while True:
 
 	visualizer.update(population[0])
 
-	gamesPerSecond = (gamesPerSecond + rounds/(time.time() - startTime))/2
+	gamesPerSecond = (gamesPerSecond + (populationSize * gamesPerGenerationPerModel)/(time.time() - startTime))/2
 	gamesPerSecondLabel.config(text=f"Games Per Second: {int(gamesPerSecond)}")
 	roundsLabel.config(text=f"Rounds: {totalRounds}")
 	timeLabel.config(text=f"Time (seconds): {int(time.time() - trainingStartTime)}")

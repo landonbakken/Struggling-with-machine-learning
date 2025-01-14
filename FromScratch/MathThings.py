@@ -34,10 +34,11 @@ def testInequality(point):
 def raw(value):
 	return value
 
+#vectorized
 def softmax(values):
-    shifted_values = values - np.max(values)
-    exp_values = np.exp(shifted_values)
-    softmax_values = exp_values / np.sum(exp_values)
+    shifted_values = values - np.max(values, axis=-1, keepdims=True)
+    exp_values = np.where(np.abs(shifted_values) > 500, 0, np.exp(shifted_values)) #ensure no errors
+    softmax_values = exp_values / np.sum(exp_values, axis=-1, keepdims=True)
     return softmax_values
 
 #vectorized (and with a limit)
