@@ -116,6 +116,8 @@ def playGame(game, model_1, model_2, slow = False):
 	game.restart()
 	winState = 0
 	while winState == 0:
+		game.turn = -game.turn
+
 		#get the model's placement
 		boardState = game.board.flatten()
 		if game.turn == 1:
@@ -135,11 +137,9 @@ def playGame(game, model_1, model_2, slow = False):
 			#punish for invalid move
 			if not valid:
 				if game.turn == 1:
-					model_1.fitness -= .05
+					model_1.fitness += fitness_invalid
 				elif game.turn == -1:
-					model_2.fitness -= .05
-		
-		game.turn = -game.turn
+					model_2.fitness += fitness_invalid
 
 		if slow:
 			game.update()
@@ -147,12 +147,16 @@ def playGame(game, model_1, model_2, slow = False):
 
 	#penalize for tie
 	if winState == -2:
-		model_1.fitness -= .1
-		model_2.fitness -= .1
+		model_1.fitness += fitness_tie
+		model_2.fitness += fitness_tie
 	#reward/penalize for win/lost
 	else:
-		model_1.fitness += winState
-		model_2.fitness += -winState
+		if winState == 1:
+			model_1.fitness += fitness_win
+			model_2.fitness += fitness_loss
+		elif winState == -1:
+			model_2.fitness += fitness_win
+			model_1.fitness += fitness_loss
 
 def offsetArray(initialArray, offsetAmount, percentToOffset):
 	# Number of elements to modify (10% of the total number of elements)
@@ -201,13 +205,22 @@ def watchGame():
 
 dimentions = [42, 128, 64, 7]
 populationSize = 100
-rounds = 5000
+rounds = 3000 #the initial amount
+roundsMax = populationSize**2 #final amount
+
+#rewards/punishments
+fitness_invalid = -.1
+fitness_tie = -.3
+fitness_loss = -.5
+fitness_win = 1
+
 offsetAmount = .1 #a random range from -offset to offset
 offsetPercent = .03 #how many weights/biases are offset
-replacedPercent = .07 #how many weights/biases are offset
+replacedPercent = .15 #how many weights/biases are replaced
 replacedRange = (-1, 1)
-childrenPerParent = 9
-parents = 10
+
+childrenPerParent = 19
+parents = 5
 
 #create model
 population = np.empty(populationSize, dtype=Model)
@@ -272,7 +285,7 @@ while True:
 	totalRounds += 1
 
 	#adaptive rounds lets it train fast at the beginning
-	rounds = min(rounds + 100, (populationSize**2)*2)
+	rounds = min(rounds + 100, roundsMax)
 
 	#sort by fitness
 	population = np.array(sorted(population, key=lambda model: model.fitness, reverse=True))
