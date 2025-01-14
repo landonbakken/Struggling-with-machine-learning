@@ -78,8 +78,12 @@ class Game:
 	
 	def defensiveReward(self, x, y, player):
 		reward = 0
-		#block a 3
-		#split a xoxx
+
+		#blocks
+		hypotheticalWinState = self.checkState(x, y, -player) #see what would have happened if the other player played there
+		if hypotheticalWinState == -player:
+			reward += fitness_block
+
 		return reward
 	
 	def offensiveReward(self, x, y, player):
@@ -255,17 +259,17 @@ dimentions = [49, 128, 64, 7] #the dimentions of the models
 
 childrenPerParent = 15 #how many models are gotten from each parent
 parents = 10 #the amount of models kept
-randomModels = 0 #usually just slows down the start, can be helpfull tho
-populationSize = parents * childrenPerParent + parents + randomModels
-gamesPerGenerationPerModel = 10 #the games that each model plays per generation
-minFitness = -10 #how low a model's fitness has to go to just forfiet the rest of the matches
+randomModels = 0#1 #usually just slows down the start
+gamesPerGenerationPerModel = 15 #the games that each model plays per generation
+minFitness = -20 #how low a model's fitness has to go to just forfiet the rest of the matches
 
 #rewards/punishments
 fitness_invalid = -.2 #if there is an invalid move
 fitness_valid = 0 #if there is a valid move
-fitness_tie = -.3
-fitness_loss = -1
-fitness_win = 1.5
+fitness_tie = 0#-.3
+fitness_loss = -.1#-1
+fitness_win = .1#1.5
+fitness_block = 1
 
 offsetAmount = .2 #a random range from -offsetAmount to -offsetAmount
 offsetPercent = .1 #percentage of weights/biases that are offset for each child
@@ -276,6 +280,7 @@ replacedRange = (-1, 1) #the random range that weights are set to
 memoryFile = memoryPath + "memory.pickle"
 
 #create model
+populationSize = parents * childrenPerParent + parents + randomModels
 population = np.empty(populationSize, dtype=Model)
 for i in range(populationSize):
 	newModel = Model(dimentions, costFunction, leakyReluFunction, softmax)
@@ -398,9 +403,9 @@ while True:
 
 	averageFitness_mean = statistics.median(model.fitness for model in population)
 	averageFitness_median = statistics.mean(model.fitness for model in population)
-	averageFitnessLabel.config(text=f"Fitness: Mean: {averageFitness_mean}, Median: {averageFitness_median}")
+	averageFitnessLabel.config(text=f"Fitness: Mean: {int(averageFitness_mean):.3g}, Median: {int(averageFitness_median):.3g}")
 
-	bestFitnessLabel.config(text=f"Max Fitness: {population[0].fitness}")
+	bestFitnessLabel.config(text=f"Max Fitness: {int(population[0].fitness):.3g}")
 
 	prematureStopLabel.config(text=f"Models Abandoned this round: {abandoned}")
 	abandoned = 0
