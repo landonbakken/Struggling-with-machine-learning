@@ -202,12 +202,12 @@ def watchGame():
 dimentions = [42, 128, 64, 7]
 populationSize = 100
 rounds = 5000
-offsetAmount = .1
-offsetPercent = .01 #how many weights/biases are offset
-replacedPercent = .04 #how many weights/biases are offset
+offsetAmount = .1 #a random range from -offset to offset
+offsetPercent = .03 #how many weights/biases are offset
+replacedPercent = .07 #how many weights/biases are offset
 replacedRange = (-1, 1)
-childrenPerParent = 12
-parents = 7
+childrenPerParent = 9
+parents = 10
 
 #create model
 population = np.empty(populationSize, dtype=Model)
