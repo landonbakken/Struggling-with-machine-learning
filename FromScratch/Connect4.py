@@ -235,27 +235,20 @@ def replaceArray(initialArray, randomRange, percentToReplace):
 
 def makeChildren(parent, children):
 	weights, biases = parent.getValues()
-	for childIndex, child in enumerate(children):
-		#some children have very little variation, and some have a lot
-		childVariation = offsetAmount * childIndex / len(children)
-		childOffsetPercent = offsetPercent * childIndex / len(children)
-		childReplacePercent = replacedPercent * childIndex / len(children)
+	for child in children:
 		
 		newWeights = weights.copy()
 		newBiases = biases.copy()
 
 		#biases
 		for weightsIndex in range(newWeights.shape[0]):
-			offsetArrayNormalized(newWeights[weightsIndex], childVariation, childOffsetPercent)
-			replaceArray(newWeights[weightsIndex], replacedRange, childReplacePercent)
+			offsetArrayNormalized(newWeights[weightsIndex], offsetAmount, offsetPercent)
+			replaceArray(newWeights[weightsIndex], replacedRange, replacedPercent)
 
 		#biases
 		for biasesIndex in range(newBiases.shape[0]):
-			offsetArrayNormalized(newBiases[biasesIndex], childVariation, childOffsetPercent)
-			replaceArray(newBiases[biasesIndex], replacedRange, childReplacePercent)
-
-		#print(np.array_equal(newWeights[0], weights[0]))
-		#print(np.array_equal(newBiases, biases))
+			offsetArrayNormalized(newBiases[biasesIndex], offsetAmount, offsetPercent)
+			replaceArray(newBiases[biasesIndex], replacedRange, replacedPercent)
 		
 		child.setValues(newWeights, newBiases)
 		child.age = 0
@@ -279,23 +272,23 @@ Output:
 """
 dimentions = [49, 128, 64, 7] #the dimentions of the models
 
-childrenPerParent = 18 #how many models are gotten from each parent
-numParents = 10 #the amount of models kept
+childrenPerParent = 19 #how many models are gotten from each parent
+numParents = 8 #the amount of models kept
 randomModels = 0#1 #usually just slows down the start
-gamesPerGenerationPerModel = 20 #the games that each model plays per generation
-minFitness = -15 #how low a model's fitness has to go to just forfiet the rest of the matches
+gamesPerGenerationPerModel = 13 #the games that each model plays per generation
+minFitness = -10 #how low a model's fitness has to go to just forfiet the rest of the matches
 
 #rewards/punishments
 fitness_invalid = -.2 #if there is an invalid move
-fitness_valid = 0 #if there is a valid move
+fitness_valid = 0#.1 #if there is a valid move
 fitness_tie = -.2
 fitness_loss = -1
 fitness_win = 1.5
-fitness_block = 1
+fitness_block = .5
 
-offsetAmount = .2 #a random range from -offsetAmount to -offsetAmount
-offsetPercent =	.07 #percentage of weights/biases that are offset for each child
-replacedPercent = .015 #percentage of weights/biases that are replaced for each child
+offsetAmount = .05 #a random range from -offsetAmount to -offsetAmount
+offsetPercent =	.005 #percentage of weights/biases that are offset for each child
+replacedPercent = .0015 #percentage of weights/biases that are replaced for each child
 replacedRange = (-1, 1) #the random range that weights are set to
 
 #memory paths
