@@ -133,6 +133,13 @@ class Game:
 		
 		return 0
 	
+#a model that returns random values
+class RandomModel:
+	def __init__(self):
+		self.fitness = 0 #not used for anything, just so there aren't errors
+	def calculate(self, boardState):
+		return np.random.random(7)
+	
 def playGame(game, model_1, model_2, slow = False):
 	game.restart()
 	winState = 0
@@ -176,9 +183,6 @@ def playGame(game, model_1, model_2, slow = False):
 		elif game.turn == -1:
 			model_2.fitness += fitness_valid
 
-		
-
-
 		if slow:
 			game.update()
 			time.sleep(.5)
@@ -193,11 +197,24 @@ def playGame(game, model_1, model_2, slow = False):
 			model_1.fitness += fitness_win
 			model_2.fitness += fitness_loss
 		elif winState == -1:
-			model_2.fitness += fitness_win
 			model_1.fitness += fitness_loss
+			model_2.fitness += fitness_win
+
+def offsetArrayNormalized(initialArray, offsetAmount, percentToOffset):
+	# Number of elements to modify (10% of the total number of elements)
+	num_elements_to_modify = int(initialArray.size * percentToOffset)
+
+	# Randomly select indices to modify
+	indices = np.unravel_index(np.random.choice(initialArray.size, num_elements_to_modify, replace=False), initialArray.shape)
+
+	# Generate random offsets from a normal distribution
+	offsets = np.random.normal(loc=0, scale=offsetAmount, size=num_elements_to_modify)
+
+	# Apply the offsets to the selected indices
+	initialArray[indices] += offsets
 
 def offsetArray(initialArray, offsetAmount, percentToOffset):
-	# Number of elements to modify (10% of the total number of elements)
+	# Number of elements to modify
 	num_elements_to_modify = int(initialArray.size * percentToOffset)
 
 	# Get indices of the array's elements
@@ -207,33 +224,38 @@ def offsetArray(initialArray, offsetAmount, percentToOffset):
 	initialArray[indices] += np.random.uniform(-offsetAmount, offsetAmount, num_elements_to_modify)
 
 def replaceArray(initialArray, randomRange, percentToReplace):
-	# Number of elements to modify (10% of the total number of elements)
+	# Number of elements to modify
 	num_elements_to_modify = int(initialArray.size * percentToReplace)
 
 	# Get indices of the array's elements
 	indices = np.unravel_index(np.random.choice(initialArray.size, num_elements_to_modify, replace=False), initialArray.shape)
 
 	# Set the selected elements to random values
-	initialArray[indices] = np.random.uniform(-randomRange[0], randomRange[1], num_elements_to_modify)
+	initialArray[indices] = np.random.uniform(randomRange[0], randomRange[1], num_elements_to_modify)
 
 def makeChildren(parent, children):
 	weights, biases = parent.getValues()
 	for childIndex, child in enumerate(children):
 		#some children have very little variation, and some have a lot
-		childVariation = offsetAmount * childIndex / len(children) 
-		childOffsetPercent = offsetPercent * childIndex / len(children) 
-		childReplacePercent = replacedPercent * childIndex / len(children) 
+		childVariation = offsetAmount * childIndex / len(children)
+		childOffsetPercent = offsetPercent * childIndex / len(children)
+		childReplacePercent = replacedPercent * childIndex / len(children)
 		
 		newWeights = weights.copy()
 		newBiases = biases.copy()
-		
-		#offsets
-		offsetArray(newWeights, childVariation, childOffsetPercent)
-		offsetArray(newBiases, childVariation, childOffsetPercent)
 
-		#replacements
-		replaceArray(newWeights, replacedRange, childReplacePercent)
-		replaceArray(newBiases, replacedRange, childReplacePercent)
+		#biases
+		for weightsIndex in range(newWeights.shape[0]):
+			offsetArrayNormalized(newWeights[weightsIndex], childVariation, childOffsetPercent)
+			replaceArray(newWeights[weightsIndex], replacedRange, childReplacePercent)
+
+		#biases
+		for biasesIndex in range(newBiases.shape[0]):
+			offsetArrayNormalized(newBiases[biasesIndex], childVariation, childOffsetPercent)
+			replaceArray(newBiases[biasesIndex], replacedRange, childReplacePercent)
+
+		#print(np.array_equal(newWeights[0], weights[0]))
+		#print(np.array_equal(newBiases, biases))
 		
 		child.setValues(newWeights, newBiases)
 		child.age = 0
@@ -257,30 +279,30 @@ Output:
 """
 dimentions = [49, 128, 64, 7] #the dimentions of the models
 
-childrenPerParent = 15 #how many models are gotten from each parent
-parents = 10 #the amount of models kept
+childrenPerParent = 18 #how many models are gotten from each parent
+numParents = 10 #the amount of models kept
 randomModels = 0#1 #usually just slows down the start
-gamesPerGenerationPerModel = 15 #the games that each model plays per generation
-minFitness = -20 #how low a model's fitness has to go to just forfiet the rest of the matches
+gamesPerGenerationPerModel = 20 #the games that each model plays per generation
+minFitness = -15 #how low a model's fitness has to go to just forfiet the rest of the matches
 
 #rewards/punishments
 fitness_invalid = -.2 #if there is an invalid move
 fitness_valid = 0 #if there is a valid move
-fitness_tie = 0#-.3
-fitness_loss = -.1#-1
-fitness_win = .1#1.5
+fitness_tie = -.2
+fitness_loss = -1
+fitness_win = 1.5
 fitness_block = 1
 
 offsetAmount = .2 #a random range from -offsetAmount to -offsetAmount
-offsetPercent = .1 #percentage of weights/biases that are offset for each child
-replacedPercent = .2 #percentage of weights/biases that are replaced for each child
+offsetPercent =	.07 #percentage of weights/biases that are offset for each child
+replacedPercent = .015 #percentage of weights/biases that are replaced for each child
 replacedRange = (-1, 1) #the random range that weights are set to
 
 #memory paths
 memoryFile = memoryPath + "memory.pickle"
 
 #create model
-populationSize = parents * childrenPerParent + parents + randomModels
+populationSize = numParents * childrenPerParent + numParents + randomModels
 population = np.empty(populationSize, dtype=Model)
 for i in range(populationSize):
 	newModel = Model(dimentions, costFunction, leakyReluFunction, softmax)
@@ -331,6 +353,7 @@ trainingStartTime = time.time()
 gamesPerSecond = 0
 totalRounds = 0
 abandoned = 0
+randomModel = RandomModel()
 while True:
 	startTime = time.time()
 
@@ -367,24 +390,24 @@ while True:
 
 	if saveMem:
 		saveMem = False
-		saveModels(memoryFile, population[0:parents])
+		saveModels(memoryFile, population[0:numParents])
 		print("Saved memory to files")
 
 	if loadMem:
 		loadMem = False
-		loadModels(memoryFile, population[0:parents])
+		loadModels(memoryFile, population[0:numParents])
 		print("Loaded memory from files")
 
 	#create children
-	for modelIndex in range(parents):
+	for modelIndex in range(numParents):
 		parent = population[modelIndex]
 		parent.age += 1
-		startIndex = (modelIndex) * childrenPerParent + parents #start after the parents
+		startIndex = modelIndex * childrenPerParent + numParents #start after the parents
 		children = population[startIndex:startIndex + childrenPerParent] #8 children per top model in the top 10
 		makeChildren(parent, children)
 	
 	#create new
-	for modelIndex in range(parents * (childrenPerParent + 1), populationSize):
+	for modelIndex in range(numParents * (childrenPerParent + 1), populationSize):
 		population[modelIndex].randomizeValues()
 		population[modelIndex].generation = 0
 		population[modelIndex].age = 0
@@ -403,13 +426,13 @@ while True:
 
 	averageFitness_mean = statistics.median(model.fitness for model in population)
 	averageFitness_median = statistics.mean(model.fitness for model in population)
-	averageFitnessLabel.config(text=f"Fitness: Mean: {int(averageFitness_mean):.3g}, Median: {int(averageFitness_median):.3g}")
+	averageFitnessLabel.config(text=f"Fitness: Mean: {int(averageFitness_mean):.5g}, Median: {int(averageFitness_median):.5g}")
 
-	bestFitnessLabel.config(text=f"Max Fitness: {int(population[0].fitness):.3g}")
+	bestFitnessLabel.config(text=f"Max Fitness: {int(population[0].fitness):.5g}")
 
 	prematureStopLabel.config(text=f"Models Abandoned this round: {abandoned}")
 	abandoned = 0
 
 	if watchNextGame:
 		watchNextGame = False
-		playGame(game, population[0], population[1], True) #top two play
+		playGame(game, population[0], population[1], slow=True) #top two play
