@@ -10,10 +10,10 @@ from MathThings import *
 from Memory import *
 
 inline_range = 50
-fitness_inline = 2 #per tick
-fitness_passed = 100 #pass gap
-fitness_time = .1 #per tick
-fitness_death = -5
+fitness_inline = 0#2 #per tick
+fitness_passed = 1 #pass gap
+fitness_time = 0#.1 #per tick
+fitness_death = 0#-5
 
 gravity = -2
 jumpVel = 20
@@ -74,6 +74,8 @@ class Game:
 			player.yVel = 0
 			player.alive = True
 
+		self.timeResolution = .8 #this is just a simple way to scale accel and velocity, effectivle gives more resolution to the players
+
 	def draw(self):
 		global onlyDrawBest
 
@@ -110,7 +112,7 @@ class Game:
 
 	def update(self):
 		#change gap
-		self.gapXPos += self.gapXVel
+		self.gapXPos += self.gapXVel * self.timeResolution
 		if self.gapXPos <= -self.gapWidth/2:
 			self.gapYPos = random.randrange(self.gapMargin, self.HEIGHT - self.gapMargin)
 			self.gapXPos = self.WIDTH
@@ -132,7 +134,7 @@ class Game:
 				jump = player.calculate(state)
 
 				#gravity
-				player.yVel += gravity
+				player.yVel += gravity * self.timeResolution
 
 				#jump
 				if jump[0] > jump[1]:
@@ -140,7 +142,7 @@ class Game:
 					player.yVel += jumpVel
 
 				#move players (inverted vel)
-				player.yPos -= player.yVel
+				player.yPos -= player.yVel * self.timeResolution
 
 				#check if player is still alive
 				outOfBounds = player.yPos > self.HEIGHT - self.playerRadius or player.yPos < self.playerRadius
@@ -179,7 +181,7 @@ onlyDrawBest = True
 
 #create visualizer
 pygame.init()
-visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=500, nodeRadius=6, connectionWidth=2, outlines=False)
+visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=650, nodeRadius=6, connectionWidth=2, outlines=False)
 
 #controls window
 root = tk.Tk()
@@ -284,6 +286,7 @@ while True:
 	ageLabel.config(text=f"Oldest Model: {maxAge}")
 	maxGeneration = max(model.generation for model in population)
 	generationLabel.config(text=f"Oldest Strand: {maxGeneration}")
+	timeLabel.config(text=f"Time: {time.time() - trainingStartTime:.1f} (Secs)")
 
 	averageFitness_mean = statistics.median(model.fitness for model in population)
 	averageFitness_median = statistics.mean(model.fitness for model in population)
