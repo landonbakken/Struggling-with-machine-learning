@@ -1,5 +1,6 @@
 from MathThings import *
 import numpy as np
+import random
 
 class Datapoint:
 	def __init__(self, inputs, condition):
@@ -14,6 +15,7 @@ class Model:
 		self.costFunction = costFunction
 		self.regularizationStrength = regularizationStrength
 		self.regularizationOffset = regularizationOffset
+		self.color = randomColor() #for some visual identification
 
 		dimentions = dimentions.copy()
 		numInputs = dimentions.pop(0)

@@ -20,7 +20,7 @@ memoryFile = Memory.memoryPath + "memory.pickle"
 #model settings
 learnRateUpdateRate = .1 #percent, how fast the update rate changes
 biasLearnRateRatio = .4 #this is so that the biases don't overshadow the weights
-learnRateRange = (.03, 15)
+learnRateRange = (.03, 7)#15)
 dimentions = [2, 10, 10, 2] #of the model
 
 #data settings
