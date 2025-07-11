@@ -10,8 +10,8 @@ from MathThings import *
 from Memory import *
 
 inline_range = 50
-fitness_inline = 5 #per tick
-fitness_passed = 2 #pass gap
+fitness_inline = 1 #per tick
+fitness_passed = 100 #pass gap
 fitness_time = 0 #per tick
 fitness_death = -5
 
@@ -20,8 +20,8 @@ jumpVel = 20
 
 #child creation
 offsetAmount = .05 #a random range from -offsetAmount to -offsetAmount
-offsetPercent =	.01 #percentage of weights/biases that are offset for each child
-replacedPercent = .003 #percentage of weights/biases that are replaced for each child
+offsetPercent =	.05 #percentage of weights/biases that are offset for each child
+replacedPercent = .02 #percentage of weights/biases that are replaced for each child
 replacedRange = (-1, 1) #the random range that weights are set to
 
 """
@@ -42,24 +42,32 @@ rewards:
 """
 
 class Game:
-	def __init__(self, screen, players):
-		#create the board
-		self.WIDTH = 1700
-		self.HEIGHT = 600
-		self.playerX = self.WIDTH * 1/4
-		self.playerRadius = 10
+	def __init__(self, screen, players, width=800, height=1200):
+		#screen
+		self.WIDTH = width
+		self.HEIGHT = height
 		self.backgroundColor = (0, 0, 0)
 		self.screen = screen
+		
+		#players
+		self.playerX = self.WIDTH * 1/4
+		self.playerRadius = 10
 		self.players = players
-		self.gapHeight = self.HEIGHT/2
+		
+		#obsticles
+		self.gapYPos = self.HEIGHT/2
+		self.gapXPos = self.WIDTH
+		self.gapMargin = 100 #the distance from top or bottom
+		self.gapWidth = 50
+		self.gapHeight = 100
+		self.gapXVel = -15
+		
+		#trackers
 		self.running = True
 		self.deaths = 0
 		self.numPlayers = len(self.players)
-		self.ticksSinceChange = 0
-		self.gapMargin = 50
-		#self.largestVel = 0
 
-		#default state
+		#set player variables
 		for player in self.players:
 			player.yPos = self.HEIGHT/2 #middle
 			player.yVel = 0
@@ -74,29 +82,38 @@ class Game:
 			if player.alive:
 				pygame.draw.circle(self.screen, player.color, (self.playerX, player.yPos), self.playerRadius)
 
-		#gap
-		pygame.draw.circle(self.screen, (255, 0, 0), (self.playerX, self.gapHeight), 3)
+		#gap indicator
+		pygame.draw.circle(self.screen, (255, 0, 0), (self.gapXPos, self.gapYPos), 3)
 		
+		#lower
+		pygame.draw.rect(self.screen, (255, 0, 0), pygame.Rect(self.gapXPos - self.gapWidth/2, self.gapYPos + self.gapHeight/2, self.gapWidth, self.HEIGHT - self.gapYPos - self.gapHeight/2))
+		#upper
+		pygame.draw.rect(self.screen, (255, 0, 0), pygame.Rect(self.gapXPos - self.gapWidth/2, 0, self.gapWidth, self.gapYPos - self.gapHeight/2))
+
 		#show drawings
 		pygame.display.flip()
 
 	def getWallDistance(self):
-		return self.WIDTH - self.playerX
+		return max(self.gapYPos - self.playerX, 0)
 	
 	def getState(self, player):
 		normalizedDistance = self.getWallDistance()/self.WIDTH
-		normalizedDifference = (self.gapHeight - player.yPos)/self.HEIGHT
+		normalizedDifference = (self.gapYPos - player.yPos)/self.HEIGHT
 		normalizedHeight = player.yPos/self.HEIGHT
-		reducedVelocity = player.yVel/74
-		#self.largestVel = max(self.largestVel, velocity)
-		#print(self.largestVel)
+		reducedVelocity = player.yVel/100
 		return np.array([normalizedDistance, normalizedDifference, normalizedHeight, reducedVelocity])
 
 	def update(self):
 		#change gap
-		if self.ticksSinceChange == 20:
-			self.ticksSinceChange = 0
-			self.gapHeight = random.randrange(self.gapMargin, self.HEIGHT - self.gapMargin)
+		self.gapXPos += self.gapXVel
+		if self.gapXPos <= -self.gapWidth:
+			self.gapYPos = random.randrange(self.gapMargin, self.HEIGHT - self.gapMargin)
+			self.gapXPos = self.WIDTH
+			
+			for player in self.players:
+				if player.alive:
+					player.fitness += fitness_passed
+
 
 		#player input
 		for player in self.players:
@@ -104,8 +121,8 @@ class Game:
 				player.fitness += fitness_time
 
 				#gap closenes reward
-				if abs(self.gapHeight - player.yPos) < inline_range:
-					player.fitness += fitness_inline * ((inline_range - abs(self.gapHeight - player.yPos))/inline_range)**2
+				if abs(self.gapYPos - player.yPos) < inline_range:
+					player.fitness += fitness_inline * ((inline_range - abs(self.gapYPos - player.yPos))/inline_range)**2
 
 				state = self.getState(player)
 				jump = player.calculate(state)
@@ -122,7 +139,10 @@ class Game:
 				player.yPos -= player.yVel
 
 				#check if player is still alive
-				if player.yPos > self.HEIGHT - self.playerRadius or player.yPos < self.playerRadius:
+				outOfBounds = player.yPos > self.HEIGHT - self.playerRadius or player.yPos < self.playerRadius
+				insideGap = abs(self.gapXPos - self.playerX) < self.playerRadius + self.gapWidth/2
+				hitting = abs(self.gapYPos - player.yPos) > self.playerRadius + self.gapHeight/2
+				if outOfBounds or (insideGap and hitting):
 					player.alive = False
 					player.fitness += fitness_death
 
@@ -130,15 +150,13 @@ class Game:
 					if self.deaths == self.numPlayers:
 						self.running = False
 
-		self.ticksSinceChange += 1
-
 #memory paths
 memoryFile = memoryPath + "flappyBird.pickle"
 
 #create model
 dimentions = [4, 8, 5, 2]
-numParents = 10
-numChildrenPerParent = 20
+numParents = 7
+numChildrenPerParent = 10
 numRandomModels = 5
 populationSize = numParents + numParents * numChildrenPerParent + numRandomModels
 population = np.empty(populationSize, dtype=Model)
@@ -156,7 +174,7 @@ loadMem = False
 
 #create visualizer
 pygame.init()
-visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=1700, nodeRadius=6, connectionWidth=2, outlines=False)
+visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=1500, nodeRadius=6, connectionWidth=2, outlines=False)
 
 #controls window
 root = tk.Tk()
@@ -202,9 +220,9 @@ while True:
 		model.fitness = 0
 
 	#play game
-	game = Game(visualizer.screen, population)
+	game = Game(visualizer.screen, population, visualizer.WIDTH, visualizer.HEIGHT)
 	ticks = 0
-	while game.running and (ticks < 100 or noTickLimit):
+	while game.running and (ticks < 400 or noTickLimit):
 		#tick
 		game.update()
 		ticks += 1
