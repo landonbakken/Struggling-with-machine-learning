@@ -10,9 +10,9 @@ from MathThings import *
 from Memory import *
 
 inline_range = 50
-fitness_inline = 1 #per tick
+fitness_inline = 2 #per tick
 fitness_passed = 100 #pass gap
-fitness_time = 0 #per tick
+fitness_time = .1 #per tick
 fitness_death = -5
 
 gravity = -2
@@ -22,6 +22,7 @@ jumpVel = 20
 offsetAmount = .05 #a random range from -offsetAmount to -offsetAmount
 offsetPercent =	.05 #percentage of weights/biases that are offset for each child
 replacedPercent = .02 #percentage of weights/biases that are replaced for each child
+scaleRange = (1, .1) #difference children have different scales of replace and offset percents
 replacedRange = (-1, 1) #the random range that weights are set to
 
 """
@@ -57,9 +58,9 @@ class Game:
 		#obsticles
 		self.gapYPos = self.HEIGHT/2
 		self.gapXPos = self.WIDTH
-		self.gapMargin = 100 #the distance from top or bottom
+		self.gapMargin = 200 #the distance from top or bottom
 		self.gapWidth = 50
-		self.gapHeight = 100
+		self.gapHeight = 150
 		self.gapXVel = -15
 		
 		#trackers
@@ -74,6 +75,8 @@ class Game:
 			player.alive = True
 
 	def draw(self):
+		global onlyDrawBest
+
 		# Clear the screen
 		self.screen.fill(self.backgroundColor)
 
@@ -81,6 +84,8 @@ class Game:
 		for player in self.players:
 			if player.alive:
 				pygame.draw.circle(self.screen, player.color, (self.playerX, player.yPos), self.playerRadius)
+				if onlyDrawBest:
+					break
 
 		#gap indicator
 		pygame.draw.circle(self.screen, (255, 0, 0), (self.gapXPos, self.gapYPos), 3)
@@ -106,14 +111,13 @@ class Game:
 	def update(self):
 		#change gap
 		self.gapXPos += self.gapXVel
-		if self.gapXPos <= -self.gapWidth:
+		if self.gapXPos <= -self.gapWidth/2:
 			self.gapYPos = random.randrange(self.gapMargin, self.HEIGHT - self.gapMargin)
 			self.gapXPos = self.WIDTH
 			
 			for player in self.players:
 				if player.alive:
 					player.fitness += fitness_passed
-
 
 		#player input
 		for player in self.players:
@@ -141,7 +145,7 @@ class Game:
 				#check if player is still alive
 				outOfBounds = player.yPos > self.HEIGHT - self.playerRadius or player.yPos < self.playerRadius
 				insideGap = abs(self.gapXPos - self.playerX) < self.playerRadius + self.gapWidth/2
-				hitting = abs(self.gapYPos - player.yPos) > self.playerRadius + self.gapHeight/2
+				hitting = abs(self.gapYPos - player.yPos) > self.gapHeight/2 - self.playerRadius/2
 				if outOfBounds or (insideGap and hitting):
 					player.alive = False
 					player.fitness += fitness_death
@@ -155,9 +159,9 @@ memoryFile = memoryPath + "flappyBird.pickle"
 
 #create model
 dimentions = [4, 8, 5, 2]
-numParents = 7
+numParents = 10
 numChildrenPerParent = 10
-numRandomModels = 5
+numRandomModels = 7
 populationSize = numParents + numParents * numChildrenPerParent + numRandomModels
 population = np.empty(populationSize, dtype=Model)
 for i in range(populationSize):
@@ -171,10 +175,11 @@ for i in range(populationSize):
 watchNextGame = False
 saveMem = False
 loadMem = False
+onlyDrawBest = True
 
 #create visualizer
 pygame.init()
-visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=1500, nodeRadius=6, connectionWidth=2, outlines=False)
+visualizer = ModelVisualizer(population[0], windowHeight=800, windowWidth=500, nodeRadius=6, connectionWidth=2, outlines=False)
 
 #controls window
 root = tk.Tk()
@@ -188,6 +193,8 @@ button3.pack(pady=10)
 button4 = tk.Button(root, text="Toggle Model View", command=lambda: exec("global modelView; modelView = not modelView"))
 button4.pack(pady=10)
 button4 = tk.Button(root, text="Toggle Tick Limit", command=lambda: exec("global noTickLimit; noTickLimit = not noTickLimit"))
+button4.pack(pady=10)
+button4 = tk.Button(root, text="Toggle Only Draw Best", command=lambda: exec("global onlyDrawBest; onlyDrawBest = not onlyDrawBest"))
 button4.pack(pady=10)
 ageLabel = tk.Label(root, text="Oldest Model: 0")
 ageLabel.pack(pady=10)
@@ -206,7 +213,7 @@ totalRounds = 0
 abandoned = 0
 slowRound = False
 modelView = False
-noTickLimit = False
+noTickLimit = True
 while True:
 	startTime = time.time()
 
@@ -223,6 +230,8 @@ while True:
 	game = Game(visualizer.screen, population, visualizer.WIDTH, visualizer.HEIGHT)
 	ticks = 0
 	while game.running and (ticks < 400 or noTickLimit):
+		tickStartTime = time.time()
+
 		#tick
 		game.update()
 		ticks += 1
@@ -233,7 +242,7 @@ while True:
 		
 		#show round as slow (only if in gameView)
 		if slowRound and not modelView:
-			time.sleep(.05)
+			time.sleep(max(.05 - (time.time() - tickStartTime), .001))
 		
 		#update GUI
 		root.update()
@@ -262,7 +271,7 @@ while True:
 		parent.age += 1
 		startIndex = modelIndex * numChildrenPerParent + numParents #start after the parents
 		children = population[startIndex:startIndex + numChildrenPerParent] #8 children per top model in the top 10
-		makeChildren(parent, children, offsetAmount, offsetPercent, replacedRange, replacedPercent)
+		makeChildren(parent, children, offsetAmount, offsetPercent, replacedRange, replacedPercent, scaleRange)
 	
 	#create new randoms
 	for modelIndex in range(numParents + numParents * numChildrenPerParent, populationSize):

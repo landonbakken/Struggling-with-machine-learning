@@ -156,22 +156,25 @@ def replaceArray(initialArray, randomRange, percentToReplace):
 	# Set the selected elements to random values
 	initialArray[indices] = np.random.uniform(randomRange[0], randomRange[1], num_elements_to_modify)
 
-def makeChildren(parent, children, offsetAmount, offsetPercent, replacedRange, replacedPercent):
+def makeChildren(parent, children, offsetAmount, offsetPercent, replacedRange, replacedPercent, scaleRange = (1, 1)):
 	weights, biases = parent.getValues()
-	for child in children:
+	for childIndex, child in enumerate(children):
 		
 		newWeights = weights.copy()
 		newBiases = biases.copy()
 
+		percent = (childIndex+1)/len(children)
+		multiplier = scaleRange[0] * (1-percent) + scaleRange[1] * percent
+
 		#biases
 		for weightsIndex in range(newWeights.shape[0]):
-			offsetArrayNormalized(newWeights[weightsIndex], offsetAmount, offsetPercent)
-			replaceArray(newWeights[weightsIndex], replacedRange, replacedPercent)
+			offsetArrayNormalized(newWeights[weightsIndex], offsetAmount, offsetPercent*multiplier)
+			replaceArray(newWeights[weightsIndex], replacedRange, replacedPercent*multiplier)
 
 		#biases
 		for biasesIndex in range(newBiases.shape[0]):
-			offsetArrayNormalized(newBiases[biasesIndex], offsetAmount, offsetPercent)
-			replaceArray(newBiases[biasesIndex], replacedRange, replacedPercent)
+			offsetArrayNormalized(newBiases[biasesIndex], offsetAmount, offsetPercent*multiplier)
+			replaceArray(newBiases[biasesIndex], replacedRange, replacedPercent*multiplier)
 		
 		child.setValues(newWeights, newBiases)
 		child.age = 0
